@@ -72,18 +72,9 @@ from backend.services.predictor_service import get_prediction_bundle
 from backend.services.map_service import get_map_bundle
 
 from frontend.pages.flat_outputs.best_matches import render_listing_tab
-from frontend.pages.flat_outputs.price_story import render_price_story_tab
-from frontend.pages.flat_outputs.map_view import render_map_tab
 from frontend.pages.saved import render_saved_page
 from frontend.pages.comparison_tool import render_comparison_page
 from frontend.pages.account import render_account_page
-from frontend.components.sections import render_section
-from frontend.components.methodology import render_methodology
-from frontend.components.cards import (
-    render_value_cards,
-    render_budget_banner,
-    render_homerun_pick,
-)
 
 
 st.set_page_config(
@@ -653,30 +644,9 @@ def _render_discover():
     inputs     = session["inputs"]
     map_bundle = session["map_bundle"]
 
-    deck_tab, insights_tab, map_tab = st.tabs([
-        "🃏 Discover",
-        "📊 Insights",
-        "📍 Map",
-    ])
-
-    with deck_tab:
-        _render_value_strip(bundle, inputs)
-        st.markdown("<div style='height:0.5rem'></div>", unsafe_allow_html=True)
-        render_listing_tab(bundle["listings_df"])
-
-    with insights_tab:
-        render_homerun_pick(inputs, bundle)
-        st.markdown("<div style='height:0.5rem'></div>", unsafe_allow_html=True)
-        render_value_cards(bundle, inputs.budget)
-        render_budget_banner(bundle, inputs.budget)
-        st.markdown("---")
-        render_price_story_tab(bundle)
-        st.markdown("---")
-        render_section("M", "Methodology", "How HomeRun generates its estimates.")
-        render_methodology()
-
-    with map_tab:
-        render_map_tab(inputs, map_bundle)
+    _render_value_strip(bundle, inputs)
+    st.markdown("<div style='height:0.5rem'></div>", unsafe_allow_html=True)
+    render_listing_tab(bundle["listings_df"])
 
 
 def _render_value_strip(bundle: dict, inputs):

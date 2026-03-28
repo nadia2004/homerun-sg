@@ -7,9 +7,26 @@ Shows price analysis, flat details, per-amenity scores, match scores, and action
 
 import hashlib
 import streamlit as st
+import streamlit.components.v1 as components
 
 from backend.utils.formatters import fmt_sgd
+from backend.utils.constants import TOWN_COORDS
 from frontend.state.session import record_swipe
+
+_DEFAULT_COORD = (1.3521, 103.8198)
+
+
+def _map_iframe(town: str, height: int = 200) -> str:
+    lat, lon = TOWN_COORDS.get(town, _DEFAULT_COORD)
+    src = (
+        f"https://www.openstreetmap.org/export/embed.html"
+        f"?bbox={lon-0.012},{lat-0.008},{lon+0.012},{lat+0.008}"
+        f"&layer=mapnik&marker={lat},{lon}"
+    )
+    return (
+        f'<iframe src="{src}" width="100%" height="{height}" style="border:none;'
+        f'border-radius:12px;overflow:hidden;" loading="lazy"></iframe>'
+    )
 
 AMENITY_ICONS = {
     "mrt": "🚇", "bus": "🚌", "healthcare": "🏥",
@@ -227,6 +244,40 @@ def show_listing_detail(listing_id: str):
                       min-width:24px;text-align:right;flex-shrink:0;">{score:.0f}</span>
             </div>"""
         st.markdown(amenity_html, unsafe_allow_html=True)
+
+    # ── Market Context (pricing anchors from Insights) ────────────────────────
+    bundle = session_data["bundle"] if session_data else {}
+    if bundle:
+        pred_bundle  = bundle.get("predicted_price", predicted)
+        trans        = bundle.get("recent_median_transacted", 0)
+        c_low        = bundle.get("confidence_low", round(pred_bundle * 0.96))
+        c_high       = bundle.get("confidence_high", round(pred_bundle * 1.04))
+        budget       = session_data["inputs"].budget if session_data else 0
+        headroom_pct = ((budget - pred_bundle) / pred_bundle * 100) if pred_bundle else 0
+        headroom_col = "#059669" if headroom_pct >= 0 else "#e11d48"
+        headroom_sign = "+" if headroom_pct >= 0 else ""
+
+        st.markdown(
+            "<p style='font-size:0.68rem;font-weight:700;text-transform:uppercase;"
+            "letter-spacing:0.1em;color:#94a3b8;margin:14px 0 8px;'>Market Context</p>",
+            unsafe_allow_html=True,
+        )
+        mc1, mc2, mc3, mc4 = st.columns(4)
+        mc1.metric("Fair value",     fmt_sgd(pred_bundle))
+        mc2.metric("Recent median",  fmt_sgd(trans))
+        mc3.metric("Conf. band",     f"{fmt_sgd(c_low)} – {fmt_sgd(c_high)}")
+        mc4.metric("Budget headroom", f"{headroom_sign}{headroom_pct:.1f}%",
+                   delta_color="normal")
+
+    # ── Mini map ──────────────────────────────────────────────────────────────
+    town = row_data.get("town", "")
+    if town:
+        st.markdown(
+            "<p style='font-size:0.68rem;font-weight:700;text-transform:uppercase;"
+            "letter-spacing:0.1em;color:#94a3b8;margin:14px 0 6px;'>Location</p>",
+            unsafe_allow_html=True,
+        )
+        st.markdown(_map_iframe(town), unsafe_allow_html=True)
 
     # ── Actions ──────────────────────────────────────────────────────────────
     st.markdown(
