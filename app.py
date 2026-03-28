@@ -12,19 +12,34 @@ Flow:
 """
 
 import streamlit as st
+import streamlit.components.v1 as components
 from pathlib import Path
+from PIL import Image as _PILImage
 
 
 def _resolve_logo() -> str:
     base = Path(__file__).parent / "frontend" / "assets"
-    for name in ("homerunlogo.png", "homerunlogo.jpeg"):
-        p = base / name
-        if p.exists():
-            return str(p)
-    return ""
+    p = base / "homerun_icon.png"
+    return str(p) if p.exists() else ""
 
 
-_LOGO_PATH = _resolve_logo()
+def _load_page_icon():
+    """Return a square-cropped 64×64 PIL image for the browser tab icon."""
+    base = Path(__file__).parent / "frontend" / "assets"
+    p = base / "homerun_icon.png"
+    if not p.exists():
+        return "🏠"
+    img = _PILImage.open(p).convert("RGBA")
+    w, h = img.size
+    side = min(w, h)
+    left = (w - side) // 2
+    top  = (h - side) // 2
+    img  = img.crop((left, top, left + side, top + side))
+    return img.resize((64, 64), _PILImage.LANCZOS)
+
+
+_LOGO_PATH   = _resolve_logo()
+_PAGE_ICON   = _load_page_icon()
 
 from frontend.styles.css import inject_css
 from frontend.state.session import init_session_state, create_search_session
@@ -49,13 +64,13 @@ from frontend.components.methodology import render_methodology
 from frontend.components.cards import (
     render_value_cards,
     render_budget_banner,
-    render_top_pick,
+    render_homerun_pick,
 )
 
 
 st.set_page_config(
     page_title="HomeRun",
-    page_icon=_LOGO_PATH,
+    page_icon=_PAGE_ICON,
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -159,39 +174,308 @@ def main():
 # ── Landing page ──────────────────────────────────────────────────────────────
 
 def _render_landing_page():
-    """Clean landing page — logo, tagline, Get Started / Log in buttons."""
-    st.markdown(
-        f"""
-        <div style="max-width:420px;margin:0 auto;padding:5rem 1rem 0;text-align:center;">
-            <div style="display:inline-block;border-radius:24px;overflow:hidden;
-                        box-shadow:0 0 0 1px rgba(255,68,88,0.1),
-                                   0 12px 36px rgba(255,68,88,0.16);
-                        margin-bottom:1.4rem;">
-                {get_logo_img_tag(96)}
-            </div>
-            <h1 style="font-family:'DM Sans',sans-serif;font-size:2.2rem;font-weight:800;
-                       letter-spacing:-0.045em;color:#0b132d;margin:0 0 0.5rem;">HomeRun</h1>
-            <p style="font-size:0.95rem;color:#94a3b8;font-weight:500;margin-bottom:2.5rem;">
-                Find the fair price of your dream HDB flat.
-            </p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
+    """Landing page — hero, feature sections, reviews, CTA."""
     _, mid, _ = st.columns([1, 2, 1])
     with mid:
+        st.markdown(
+            f"""
+            <div style="padding:5rem 0 1.5rem;text-align:center;">
+                <div style="display:inline-block;border-radius:32px;overflow:hidden;
+                            box-shadow:0 0 0 1px rgba(255,68,88,0.1),
+                                       0 16px 48px rgba(255,68,88,0.18);
+                            margin-bottom:1.6rem;">
+                    {get_logo_img_tag(192)}
+                </div>
+                <p style="font-size:0.95rem;color:#94a3b8;font-weight:500;
+                          margin:0.4rem 0 2rem;line-height:1.6;">
+                    Find the fair price of your dream HDB flat.
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
         if st.button("Get Started →", type="primary",
                      use_container_width=True, key="landing_get_started"):
             _show_auth_dialog()
 
         st.markdown(
             "<p style='text-align:center;font-size:0.78rem;color:#b0b0c0;"
-            "margin-top:0.7rem;'>Already have an account? "
+            "margin-top:0.8rem;'>Already have an account? "
             "Click Get Started and switch to Log in.</p>",
             unsafe_allow_html=True,
         )
 
+    # ── Floating CTA (appears on scroll) ──────────────────────────────────────
+
+    st.markdown("""
+    <style>
+    #hr-float-btn {
+      position:fixed; bottom:40px; right:40px; z-index:999999;
+      background:linear-gradient(130deg,#FF4458 0%,#FF6B6B 100%);
+      color:#fff; border:none; border-radius:999px;
+      padding:16px 32px; font-family:'DM Sans',-apple-system,sans-serif;
+      font-size:15px; font-weight:800; cursor:pointer;
+      box-shadow:0 10px 30px rgba(255,68,88,0.45);
+      visibility: hidden; opacity:0;
+      transform:translateY(20px);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    #hr-float-btn.hr-show {
+      visibility: visible; opacity:1; transform:translateY(0);
+    }
+    #hr-float-btn:hover {
+      box-shadow:0 15px 45px rgba(255,68,88,0.6);
+      transform:translateY(-3px);
+    }
+    </style>
+    <button id="hr-float-btn" onclick="window.scrollTo({top:0, behavior:'smooth'})">Get Started →</button>
+    <script>
+    (function(){
+      // Targets the main Streamlit window to detect scrolling correctly
+      const btn = window.parent.document.getElementById('hr-float-btn') || document.getElementById('hr-float-btn');
+      window.parent.addEventListener('scroll', function() {
+        if (window.parent.scrollY > 200) btn.classList.add('hr-show');
+        else btn.classList.remove('hr-show');
+      }, {passive:true});
+    })();
+    </script>
+    """, unsafe_allow_html=True)
+
+    # ── How it works ──────────────────────────────────────────────────────────
+    components.html("""<!DOCTYPE html>
+<html><head><meta charset="utf-8"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{overflow:hidden}body{font-family:'DM Sans',-apple-system,sans-serif;background:#fff;}
+</style></head><body>
+    <div style="padding:48px 40px 48px;background:#fff;">
+      <div style="max-width:960px;margin:0 auto;">
+        <div style="text-align:center;margin-bottom:48px;">
+          <div style="font-size:11px;font-weight:700;letter-spacing:0.16em;
+                      text-transform:uppercase;color:#FF4458;margin-bottom:14px;">
+            HOW IT WORKS
+          </div>
+          <h2 style="font-family:'DM Sans',-apple-system,sans-serif;font-size:2.4rem;
+                     font-weight:800;color:#0b132d;letter-spacing:-0.035em;margin:0;">
+            Your dream flat, in 4 easy steps
+          </h2>
+          <p style="font-size:1rem;color:#64748b;font-weight:500;margin:14px auto 0;
+                    max-width:480px;line-height:1.7;">
+            No spreadsheets. No cold calls. Just smart, personalised recommendations.
+          </p>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:24px;">
+
+          <div style="background:#fafafa;border:1px solid #f0f0f0;border-radius:22px;
+                      padding:32px 28px;display:flex;gap:20px;align-items:flex-start;">
+            <div style="flex-shrink:0;width:48px;height:48px;border-radius:14px;
+                        background:linear-gradient(135deg,#FF4458,#FF6B6B);
+                        display:flex;align-items:center;justify-content:center;
+                        font-size:1.4rem;">🎯</div>
+            <div>
+              <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.12em;
+                          text-transform:uppercase;color:#FF4458;margin-bottom:6px;">Step 1</div>
+              <div style="font-size:1.05rem;font-weight:800;color:#0b132d;margin-bottom:8px;">
+                Take the Smart Quiz
+              </div>
+              <div style="font-size:0.875rem;color:#64748b;line-height:1.65;font-weight:500;">
+                Answer a short personality-style quiz about your lifestyle, commute habits,
+                and priorities. Takes under 2 minutes.
+              </div>
+            </div>
+          </div>
+
+          <div style="background:#fafafa;border:1px solid #f0f0f0;border-radius:22px;
+                      padding:32px 28px;display:flex;gap:20px;align-items:flex-start;">
+            <div style="flex-shrink:0;width:48px;height:48px;border-radius:14px;
+                        background:linear-gradient(135deg,#FF4458,#FF6B6B);
+                        display:flex;align-items:center;justify-content:center;
+                        font-size:1.4rem;">💘</div>
+            <div>
+              <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.12em;
+                          text-transform:uppercase;color:#FF4458;margin-bottom:6px;">Step 2</div>
+              <div style="font-size:1.05rem;font-weight:800;color:#0b132d;margin-bottom:8px;">
+                Swipe Through Matches
+              </div>
+              <div style="font-size:0.875rem;color:#64748b;line-height:1.65;font-weight:500;">
+                Browse curated HDB listings Tinder-style. Swipe right to save, left to skip —
+                your shortlist builds itself.
+              </div>
+            </div>
+          </div>
+
+          <div style="background:#fafafa;border:1px solid #f0f0f0;border-radius:22px;
+                      padding:32px 28px;display:flex;gap:20px;align-items:flex-start;">
+            <div style="flex-shrink:0;width:48px;height:48px;border-radius:14px;
+                        background:linear-gradient(135deg,#FF4458,#FF6B6B);
+                        display:flex;align-items:center;justify-content:center;
+                        font-size:1.4rem;">💰</div>
+            <div>
+              <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.12em;
+                          text-transform:uppercase;color:#FF4458;margin-bottom:6px;">Step 3</div>
+              <div style="font-size:1.05rem;font-weight:800;color:#0b132d;margin-bottom:8px;">
+                Get the Fair Price
+              </div>
+              <div style="font-size:0.875rem;color:#64748b;line-height:1.65;font-weight:500;">
+                Our ML model predicts the true resale value of each flat so you always
+                know if you're getting a fair deal.
+              </div>
+            </div>
+          </div>
+
+          <div style="background:#fafafa;border:1px solid #f0f0f0;border-radius:22px;
+                      padding:32px 28px;display:flex;gap:20px;align-items:flex-start;">
+            <div style="flex-shrink:0;width:48px;height:48px;border-radius:14px;
+                        background:linear-gradient(135deg,#FF4458,#FF6B6B);
+                        display:flex;align-items:center;justify-content:center;
+                        font-size:1.4rem;">⚖️</div>
+            <div>
+              <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.12em;
+                          text-transform:uppercase;color:#FF4458;margin-bottom:6px;">Step 4</div>
+              <div style="font-size:1.05rem;font-weight:800;color:#0b132d;margin-bottom:8px;">
+                Compare &amp; Decide
+              </div>
+              <div style="font-size:0.875rem;color:#64748b;line-height:1.65;font-weight:500;">
+                Put your saved flats side-by-side across price, location, and key metrics.
+                Make the call with confidence.
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+<script>(function(){function r(){var h=document.body.offsetHeight;window.parent.postMessage({type:'streamlit:setFrameHeight',height:Math.ceil(h)},'*');}r();window.addEventListener('load',r);if(document.fonts&&document.fonts.ready){document.fonts.ready.then(r);}setTimeout(r,150);setTimeout(r,600);})();</script>
+</body></html>""", height=700, scrolling=False)
+
+    # ── Reviews ───────────────────────────────────────────────────────────────
+    # ── Reviews (Updated Padding) ───────────────────────────────────────────────
+    components.html("""<!DOCTYPE html>
+    <html><head><meta charset="utf-8"/>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html{overflow:hidden}
+    body{font-family:'DM Sans',-apple-system,sans-serif;background:#f9f9f9;}
+    .carousel{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;
+    -webkit-overflow-scrolling:touch;padding:4px 40px 20px;
+    scrollbar-width:thin;scrollbar-color:#FF4458 #f0f0f0;}
+    .carousel::-webkit-scrollbar{height:4px;}
+    .carousel::-webkit-scrollbar-track{background:#f0f0f0;border-radius:2px;}
+    .carousel::-webkit-scrollbar-thumb{background:#FF4458;border-radius:2px;}
+    .card{flex:0 0 calc(25% - 12px);scroll-snap-align:start;background:#fff;
+    border-radius:18px;padding:20px 18px;
+    box-shadow:0 2px 16px rgba(0,0,0,0.06);border:1px solid #f0f0f0;}
+    .avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;
+    justify-content:center;color:#fff;font-weight:800;font-size:0.88rem;flex-shrink:0;}
+    .gsvg{margin-left:auto;flex-shrink:0;}
+    </style></head><body>
+    <div style="padding:40px 0 80px;background:#f9f9f9;"> <div style="text-align:center;margin-bottom:28px;padding:0 40px;">
+        <div style="font-size:11px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:#FF4458;margin-bottom:10px;">REVIEWS</div>
+        <h2 style="font-size:2rem;font-weight:800;color:#0b132d;letter-spacing:-0.035em;margin:0 0 6px;">Loved by flat hunters across Singapore</h2>
+        <div style="color:#FBBC04;font-size:1.25rem;letter-spacing:2px;">★★★★★</div>
+        <p style="font-size:0.85rem;color:#64748b;font-weight:500;margin:6px 0 0;">4.9 out of 5 &nbsp;·&nbsp; 8 reviews</p>
+    </div>
+    <div class="carousel">
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:9px;margin-bottom:12px;">
+        <div class="avatar" style="background:#4285F4;">L</div>
+        <div><div style="font-weight:700;font-size:0.85rem;color:#0b132d;">Lucille</div><div style="color:#FBBC04;font-size:0.75rem;">★★★★★</div></div>
+        <svg class="gsvg" width="16" height="16" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC04"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+      </div>
+      <p style="font-size:0.81rem;color:#374151;line-height:1.6;margin:0 0 10px;font-weight:500;">"Finally found a resale flat that fits my budget without the stress. HomeRun made the whole process so much more manageable!"</p>
+      <div style="font-size:0.7rem;color:#9ca3af;">March 2025</div>
+    </div>
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:9px;margin-bottom:12px;">
+        <div class="avatar" style="background:#34A853;">N</div>
+        <div><div style="font-weight:700;font-size:0.85rem;color:#0b132d;">Nadia</div><div style="color:#FBBC04;font-size:0.75rem;">★★★★★</div></div>
+        <svg class="gsvg" width="16" height="16" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC04"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+      </div>
+      <p style="font-size:0.81rem;color:#374151;line-height:1.6;margin:0 0 10px;font-weight:500;">"The price predictions are scarily accurate. Helped me negotiate a much better deal on my Tampines resale — saved thousands."</p>
+      <div style="font-size:0.7rem;color:#9ca3af;">February 2025</div>
+    </div>
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:9px;margin-bottom:12px;">
+        <div class="avatar" style="background:#EA4335;">X</div>
+        <div><div style="font-weight:700;font-size:0.85rem;color:#0b132d;">Xinyan</div><div style="color:#FBBC04;font-size:0.75rem;">★★★★★</div></div>
+        <svg class="gsvg" width="16" height="16" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC04"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+      </div>
+      <p style="font-size:0.81rem;color:#374151;line-height:1.6;margin:0 0 10px;font-weight:500;">"Love the swipe feature — it made browsing flats actually fun. The UX is really clean and nothing feels overwhelming."</p>
+      <div style="font-size:0.7rem;color:#9ca3af;">January 2025</div>
+    </div>
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:9px;margin-bottom:12px;">
+        <div class="avatar" style="background:#FBBC04;">S</div>
+        <div><div style="font-weight:700;font-size:0.85rem;color:#0b132d;">Sooah</div><div style="color:#FBBC04;font-size:0.75rem;">★★★★★</div></div>
+        <svg class="gsvg" width="16" height="16" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC04"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+      </div>
+      <p style="font-size:0.81rem;color:#374151;line-height:1.6;margin:0 0 10px;font-weight:500;">"As a first-time buyer I had no clue what a fair price even meant. HomeRun gave me so much confidence going into viewings."</p>
+      <div style="font-size:0.7rem;color:#9ca3af;">March 2025</div>
+    </div>
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:9px;margin-bottom:12px;">
+        <div class="avatar" style="background:#9c27b0;">C</div>
+        <div><div style="font-weight:700;font-size:0.85rem;color:#0b132d;">Camille</div><div style="color:#FBBC04;font-size:0.75rem;">★★★★★</div></div>
+        <svg class="gsvg" width="16" height="16" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC04"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+      </div>
+      <p style="font-size:0.81rem;color:#374151;line-height:1.6;margin:0 0 10px;font-weight:500;">"The comparison tool is a total game changer. Side-by-side metrics saved me hours of research across PropertyGuru listings."</p>
+      <div style="font-size:0.7rem;color:#9ca3af;">February 2025</div>
+    </div>
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:9px;margin-bottom:12px;">
+        <div class="avatar" style="background:#00897B;">E</div>
+        <div><div style="font-weight:700;font-size:0.85rem;color:#0b132d;">Emma</div><div style="color:#FBBC04;font-size:0.75rem;">★★★★<span style="color:#d1d5db;">★</span></div></div>
+        <svg class="gsvg" width="16" height="16" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC04"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+      </div>
+      <p style="font-size:0.81rem;color:#374151;line-height:1.6;margin:0 0 10px;font-weight:500;">"Really clean interface and the quiz is super intuitive. Would love more town options but overall it's brilliant."</p>
+      <div style="font-size:0.7rem;color:#9ca3af;">January 2025</div>
+    </div>
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:9px;margin-bottom:12px;">
+        <div class="avatar" style="background:#FF4458;">G</div>
+        <div><div style="font-weight:700;font-size:0.85rem;color:#0b132d;">Gerianne</div><div style="color:#FBBC04;font-size:0.75rem;">★★★★★</div></div>
+        <svg class="gsvg" width="16" height="16" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC04"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+      </div>
+      <p style="font-size:0.81rem;color:#374151;line-height:1.6;margin:0 0 10px;font-weight:500;">"Showed this to my parents and they were genuinely impressed. Beats scrolling PropertyGuru for hours — highly recommend!"</p>
+      <div style="font-size:0.7rem;color:#9ca3af;">March 2025</div>
+    </div>
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:9px;margin-bottom:12px;">
+        <div class="avatar" style="background:#F06292;">A</div>
+        <div><div style="font-weight:700;font-size:0.85rem;color:#0b132d;">Abigail</div><div style="color:#FBBC04;font-size:0.75rem;">★★★★★</div></div>
+        <svg class="gsvg" width="16" height="16" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC04"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+      </div>
+      <p style="font-size:0.81rem;color:#374151;line-height:1.6;margin:0 0 10px;font-weight:500;">"The quiz took 2 minutes and gave me spot-on recommendations. I was genuinely surprised by how accurate the suggestions were."</p>
+      <div style="font-size:0.7rem;color:#9ca3af;">February 2025</div>
+    </div>
+    </div>
+    </div>
+    <script>(function(){function r(){var h=document.body.offsetHeight;window.parent.postMessage({type:'streamlit:setFrameHeight',height:Math.ceil(h)},'*');}r();window.addEventListener('load',r);if(document.fonts&&document.fonts.ready){document.fonts.ready.then(r);}setTimeout(r,150);setTimeout(r,600);})();</script>
+    </body></html>""", height=520, scrolling=False)
+
+    # ── Bottom CTA ────────────────────────────────────────────────────────────
+    components.html("""<!DOCTYPE html>
+<html><head><meta charset="utf-8"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{font-family:'DM Sans',-apple-system,sans-serif;background:#fff;}
+</style></head><body>
+    <div style="padding:64px 40px 72px;background:#fff;text-align:center;">
+      <h2 style="font-family:'DM Sans',-apple-system,sans-serif;font-size:2rem;
+                 font-weight:800;color:#0b132d;letter-spacing:-0.03em;margin:0 0 12px;">
+        Ready to find your flat?
+      </h2>
+      <p style="font-size:0.95rem;color:#64748b;font-weight:500;margin:0;">
+        Join thousands of Singaporeans making smarter HDB decisions.
+      </p>
+    </div>
+<script>(function(){function r(){var h=document.body.scrollHeight;window.parent.postMessage({type:'streamlit:setFrameHeight',height:h},'*');}r();window.addEventListener('load',r);if(document.fonts&&document.fonts.ready){document.fonts.ready.then(r);}setTimeout(r,200);setTimeout(r,600);})();</script>
+</body></html>""", height=180, scrolling=False)
 
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
@@ -208,7 +492,7 @@ def _render_sidebar():
     except Exception:
         pass
 
-    logo_html = get_logo_img_tag(56)
+    logo_html = get_logo_img_tag(56, use_icon=True)
     st.sidebar.markdown(
         f"""
         <div style="padding:1.2rem 1.1rem 0.9rem;
@@ -233,7 +517,7 @@ def _render_sidebar():
 
     # ── Nav ───────────────────────────────────────────────────────────────────
     st.sidebar.markdown(
-        '<div class="nw-side-nav-label">Navigate</div>',
+        '<div class="hr-side-nav-label">Navigate</div>',
         unsafe_allow_html=True,
     )
 
@@ -262,10 +546,10 @@ def _render_sidebar():
 
         st.sidebar.markdown(
             f"""
-            <div class="nw-deck-card">
-                <div class="nw-deck-label">Current deck</div>
-                <div class="nw-deck-session-name">{session['label']}</div>
-                <div class="nw-deck-ring-row">
+            <div class="hr-deck-card">
+                <div class="hr-deck-label">Current deck</div>
+                <div class="hr-deck-session-name">{session['label']}</div>
+                <div class="hr-deck-ring-row">
                     <svg width="72" height="72" viewBox="0 0 80 80">
                         <circle cx="40" cy="40" r="34" fill="none"
                                 stroke="rgba(255,255,255,0.10)" stroke-width="6"/>
@@ -278,20 +562,20 @@ def _render_sidebar():
                               fill="white" font-size="15" font-weight="800"
                               font-family="DM Sans, sans-serif">{pct}%</text>
                     </svg>
-                    <div class="nw-deck-ring-meta">
-                        <div class="nw-deck-ring-meta-item">
-                            <span class="nw-deck-big" style="color:#FF6B6B;">{n_liked}</span>
-                            <span class="nw-deck-key">♥ saved</span>
+                    <div class="hr-deck-ring-meta">
+                        <div class="hr-deck-ring-meta-item">
+                            <span class="hr-deck-big" style="color:#FF6B6B;">{n_liked}</span>
+                            <span class="hr-deck-key">♥ saved</span>
                         </div>
-                        <div class="nw-deck-ring-meta-item">
-                            <span class="nw-deck-big"
+                        <div class="hr-deck-ring-meta-item">
+                            <span class="hr-deck-big"
                                   style="color:rgba(255,255,255,0.9);">{n_unseen}</span>
-                            <span class="nw-deck-key">left</span>
+                            <span class="hr-deck-key">left</span>
                         </div>
-                        <div class="nw-deck-ring-meta-item">
-                            <span class="nw-deck-big"
+                        <div class="hr-deck-ring-meta-item">
+                            <span class="hr-deck-big"
                                   style="color:rgba(255,255,255,0.35);">{n_passed}</span>
-                            <span class="nw-deck-key">✕ passed</span>
+                            <span class="hr-deck-key">✕ passed</span>
                         </div>
                     </div>
                 </div>
@@ -300,7 +584,7 @@ def _render_sidebar():
             unsafe_allow_html=True,
         )
 
-        st.sidebar.markdown('<div class="nw-new-search">', unsafe_allow_html=True)
+        st.sidebar.markdown('<div class="hr-new-search">', unsafe_allow_html=True)
         if st.sidebar.button("🔍  New search", use_container_width=True):
             st.session_state.onboarding_step     = 1
             st.session_state.onboarding_complete = False
@@ -365,7 +649,7 @@ def _render_discover():
         render_listing_tab(bundle["listings_df"])
 
     with insights_tab:
-        render_top_pick(inputs, bundle)
+        render_homerun_pick(inputs, bundle)
         st.markdown("<div style='height:0.5rem'></div>", unsafe_allow_html=True)
         render_value_cards(bundle, inputs.budget)
         render_budget_banner(bundle, inputs.budget)
