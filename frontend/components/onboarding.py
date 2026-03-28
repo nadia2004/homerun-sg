@@ -273,29 +273,92 @@ html,body{width:100%;height:100%;font-family:'DM Sans',-apple-system,sans-serif;
 
 # ── Step 1: Budget ───────────────────────────────────────────────────────────
 
+_NO_BUDGET_SENTINEL = 9_999_999   # means "no upper limit" for the backend
+
 def _render_budget():
     _progress_bar(1)
     _step_label(1)
     _heading("What's your budget?", "We'll only show flats you can actually afford.")
 
-    budget = st.slider(
-        "Budget",
-        min_value=200000, max_value=1500000,
-        value=st.session_state.get("pref_budget") or 650000,
-        step=10000,
-        format="S$%d",
-        label_visibility="collapsed",
+    # ── flexible toggle ───────────────────────────────────────────────────────
+    saved = st.session_state.get("pref_budget")
+    flexible_default = saved == _NO_BUDGET_SENTINEL
+    flexible = st.checkbox(
+        "I'm flexible — show me everything",
+        value=flexible_default,
+        key="_bgt_flexible",
     )
-    st.markdown(
-        f"<div style='text-align:center;font-family:\"DM Sans\",sans-serif;"
-        f"font-size:2.4rem;font-weight:800;"
-        f"letter-spacing:-0.05em;color:#0b132d;margin:0.4rem 0 1.6rem;'>"
-        f"S${budget:,}</div>",
-        unsafe_allow_html=True,
-    )
+
+    if flexible:
+        st.markdown(
+            "<div style='text-align:center;padding:1.4rem 0 1rem;'>"
+            "<div style='font-size:2.8rem;margin-bottom:0.5rem;'>🔓</div>"
+            "<div style='font-family:\"DM Sans\",sans-serif;font-size:1rem;"
+            "font-weight:700;color:#0b132d;margin-bottom:0.3rem;'>"
+            "No budget limit set</div>"
+            "<div style='font-size:0.82rem;color:#94a3b8;font-weight:500;'>"
+            "We'll show you all available flats — you can always filter later.</div>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
+        budget = _NO_BUDGET_SENTINEL
+
+    else:
+        # ── seed both widget keys from saved pref on first entry ──────────────
+        init = (saved if saved and saved != _NO_BUDGET_SENTINEL else None) or 650_000
+        if "_bgt_slider" not in st.session_state or \
+                st.session_state._bgt_slider == _NO_BUDGET_SENTINEL:
+            st.session_state._bgt_slider = init
+        if "_bgt_input" not in st.session_state or \
+                st.session_state._bgt_input == _NO_BUDGET_SENTINEL:
+            st.session_state._bgt_input = init
+
+        # ── callbacks: each writes into the OTHER widget's key ────────────────
+        def _on_slider():
+            st.session_state._bgt_input = st.session_state._bgt_slider
+
+        def _on_input():
+            val = max(200_000, min(1_500_000,
+                  round(st.session_state._bgt_input / 10_000) * 10_000))
+            st.session_state._bgt_slider = val
+            st.session_state._bgt_input  = val
+
+        # ── big editable figure ───────────────────────────────────────────────
+        st.markdown("<div style='height:0.2rem'></div>", unsafe_allow_html=True)
+        pre, inp, _ = st.columns([0.18, 1, 0.18])
+        with pre:
+            st.markdown(
+                "<div style='font-family:\"DM Sans\",sans-serif;font-size:2rem;"
+                "font-weight:800;letter-spacing:-0.04em;color:#0b132d;"
+                "padding-top:0.55rem;text-align:right;'>S$</div>",
+                unsafe_allow_html=True,
+            )
+        with inp:
+            st.number_input(
+                "Budget amount",
+                min_value=200_000, max_value=1_500_000,
+                step=10_000,
+                key="_bgt_input",
+                label_visibility="collapsed",
+                on_change=_on_input,
+            )
+
+        st.slider(
+            "Budget",
+            min_value=200_000, max_value=1_500_000,
+            step=10_000,
+            format="S$%d",
+            key="_bgt_slider",
+            label_visibility="collapsed",
+            on_change=_on_slider,
+        )
+        st.markdown("<div style='height:0.8rem'></div>", unsafe_allow_html=True)
+        budget = st.session_state._bgt_slider
 
     if _next_btn(key="budget_next"):
         st.session_state.pref_budget = budget
+        for k in ("_bgt_slider", "_bgt_input", "_bgt_flexible"):
+            st.session_state.pop(k, None)
         st.session_state.onboarding_step = 2
         st.rerun()
     _back_btn("budget_back")

@@ -409,6 +409,39 @@ def inject_css():
         }
 
         /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+           BUDGET NUMBER INPUT — big editable display
+        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+        [data-testid="stNumberInput"] input {
+            font-family: var(--font) !important;
+            font-size: 2.2rem !important;
+            font-weight: 800 !important;
+            letter-spacing: -0.05em !important;
+            color: #0b132d !important;
+            text-align: center !important;
+            background: transparent !important;
+            border: none !important;
+            border-bottom: 2px solid rgba(255,68,88,0.18) !important;
+            border-radius: 0 !important;
+            padding: 0.1rem 0.4rem 0.25rem !important;
+            box-shadow: none !important;
+            transition: border-color 0.15s ease !important;
+        }
+        [data-testid="stNumberInput"] input:focus {
+            border-bottom-color: #FF4458 !important;
+            outline: none !important;
+            box-shadow: none !important;
+        }
+        /* hide the ▲▼ steppers — slider handles fine-tuning */
+        [data-testid="stNumberInput"] button {
+            display: none !important;
+        }
+        [data-testid="stNumberInput"] [data-testid="stNumberInputContainer"] {
+            border: none !important;
+            box-shadow: none !important;
+            background: transparent !important;
+        }
+
+        /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
            MAIN CONTENT
         ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
         .block-container {
