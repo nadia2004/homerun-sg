@@ -141,8 +141,19 @@ def _show_auth_dialog(initial_tab: str = "create"):
                 st.error("Invalid email or password.")
 
     st.markdown(
+        "<div style='display:flex;align-items:center;gap:8px;margin:1rem 0 0.6rem;'>"
+        "<div style='flex:1;height:1px;background:rgba(0,0,0,0.08);'></div>"
+        "<span style='font-size:0.72rem;color:#b0b0c0;white-space:nowrap;'>or</span>"
+        "<div style='flex:1;height:1px;background:rgba(0,0,0,0.08);'></div>"
+        "</div>",
+        unsafe_allow_html=True,
+    )
+    if st.button("Continue as Guest →", use_container_width=True, key="dialog_guest_btn"):
+        st.session_state.current_user = "__guest__"
+        st.rerun()
+    st.markdown(
         "<p style='text-align:center;font-size:0.72rem;color:#b0b0c0;"
-        "margin-top:1rem;'>Your data stays in this browser session only.</p>",
+        "margin-top:0.5rem;'>Guest data is not saved between sessions.</p>",
         unsafe_allow_html=True,
     )
 
@@ -599,22 +610,41 @@ def _render_sidebar():
             st.rerun()
         st.sidebar.markdown('</div>', unsafe_allow_html=True)
 
-    # ── Logged-in-as footer ───────────────────────────────────────────────────
-    user  = st.session_state.get("current_user", "")
-    uname = user.split("@")[0] if "@" in user else user
-    st.sidebar.markdown(
-        f"""
-        <div style="padding:0.85rem 1.1rem 0.7rem;border-top:1px solid rgba(255,255,255,0.07);
-                    margin-top:auto;">
-            <div style="font-size:0.68rem;color:rgba(255,255,255,0.32);font-weight:600;">
-                Signed in as</div>
-            <div style="font-size:0.8rem;color:rgba(255,255,255,0.65);font-weight:600;
-                        margin-top:2px;white-space:nowrap;overflow:hidden;
-                        text-overflow:ellipsis;">{uname}</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    # ── Logged-in-as / guest footer ───────────────────────────────────────────
+    user     = st.session_state.get("current_user", "")
+    is_guest = user == "__guest__"
+    if is_guest:
+        st.sidebar.markdown(
+            """
+            <div style="padding:0.85rem 1.1rem 0.7rem;border-top:1px solid rgba(255,255,255,0.07);
+                        margin-top:auto;">
+                <div style="display:inline-block;font-size:0.62rem;font-weight:700;
+                            letter-spacing:0.08em;text-transform:uppercase;
+                            background:rgba(255,180,0,0.18);color:#FFC107;
+                            border-radius:6px;padding:2px 7px;margin-bottom:4px;">
+                    Guest mode
+                </div>
+                <div style="font-size:0.72rem;color:rgba(255,255,255,0.38);font-weight:500;
+                            margin-top:2px;">Sign up to save your data</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    else:
+        uname = user.split("@")[0] if "@" in user else user
+        st.sidebar.markdown(
+            f"""
+            <div style="padding:0.85rem 1.1rem 0.7rem;border-top:1px solid rgba(255,255,255,0.07);
+                        margin-top:auto;">
+                <div style="font-size:0.68rem;color:rgba(255,255,255,0.32);font-weight:600;">
+                    Signed in as</div>
+                <div style="font-size:0.8rem;color:rgba(255,255,255,0.65);font-weight:600;
+                            margin-top:2px;white-space:nowrap;overflow:hidden;
+                            text-overflow:ellipsis;">{uname}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
 
 # ── Onboarding ────────────────────────────────────────────────────────────────

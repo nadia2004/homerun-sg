@@ -29,6 +29,8 @@ from backend.utils.constants import AMENITY_LABELS, FLAT_TYPES, TOWNS
 def render_account_page():
     if st.session_state.current_user is None:
         _render_auth()
+    elif st.session_state.current_user == "__guest__":
+        _render_guest()
     else:
         _render_logged_in()
 
@@ -42,8 +44,8 @@ def _render_auth():
         <div style="text-align:center;padding:2.8rem 0 2rem;">
             <div style="display:inline-flex;align-items:center;justify-content:center;
                         width:60px;height:60px;border-radius:18px;
-                        background:linear-gradient(135deg,#FF4458,#FF6B6B);
-                        font-size:1.9rem;margin-bottom:1.1rem;box-shadow:0 8px 24px rgba(255,68,88,0.28);">
+                        background:#FFF0F1;border:1.5px solid rgba(255,68,88,0.20);
+                        font-size:1.9rem;margin-bottom:1.1rem;box-shadow:0 8px 24px rgba(255,68,88,0.10);">
                 🏠
             </div>
             <h1 style="font-size:2rem;font-weight:800;letter-spacing:-0.04em;
@@ -95,6 +97,86 @@ def _render_auth():
                     st.session_state.users[new_email] = {"password": new_password}
                     st.session_state.user_histories[new_email] = []
                     st.success("Account created — you can now log in! 🎉")
+
+
+# ── Guest view ────────────────────────────────────────────────────────────────
+
+def _render_guest():
+    st.markdown(
+        """
+        <div style="text-align:center;padding:2.8rem 0 1.6rem;">
+            <div style="display:inline-flex;align-items:center;justify-content:center;
+                        width:60px;height:60px;border-radius:18px;
+                        background:#FFF0F1;border:1.5px solid rgba(255,68,88,0.20);
+                        font-size:1.9rem;margin-bottom:1.1rem;">
+                👤
+            </div>
+            <div style="display:inline-block;font-size:0.68rem;font-weight:700;
+                        letter-spacing:0.08em;text-transform:uppercase;
+                        background:rgba(255,180,0,0.12);color:#D97706;
+                        border-radius:8px;padding:3px 10px;margin-bottom:1rem;">
+                Guest mode
+            </div>
+            <h2 style="font-size:1.7rem;font-weight:800;letter-spacing:-0.04em;
+                       color:#1a1a2e;margin:0 0 0.5rem;">You're browsing as a guest</h2>
+            <p style="font-size:0.9rem;color:#6b7280;max-width:380px;margin:0 auto 2rem;
+                      line-height:1.65;">
+                Create a free account to save your preferences, keep your search history,
+                and pick up where you left off next time.
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    _, col, _ = st.columns([1, 1.6, 1])
+    with col:
+        signup_tab, login_tab = st.tabs(["  Create account  ", "  Log in  "])
+
+        with signup_tab:
+            st.markdown("<div style='height:0.7rem'></div>", unsafe_allow_html=True)
+            new_email    = st.text_input("Email address", key="guest_signup_email",
+                                         placeholder="you@example.com")
+            new_password = st.text_input("Password", type="password",
+                                         key="guest_signup_password",
+                                         placeholder="Choose a password")
+            st.markdown("<div style='height:0.5rem'></div>", unsafe_allow_html=True)
+            if st.button("Create account & continue →", type="primary",
+                         key="guest_signup_btn", use_container_width=True):
+                if not new_email or not new_password:
+                    st.warning("Please fill in both fields.")
+                elif new_email in st.session_state.users:
+                    st.warning("An account with this email already exists.")
+                else:
+                    st.session_state.users[new_email] = {"password": new_password}
+                    st.session_state.user_histories[new_email] = []
+                    st.session_state.current_user = new_email
+                    st.rerun()
+
+        with login_tab:
+            st.markdown("<div style='height:0.7rem'></div>", unsafe_allow_html=True)
+            email    = st.text_input("Email address", key="guest_login_email",
+                                     placeholder="you@example.com")
+            password = st.text_input("Password", type="password",
+                                     key="guest_login_password",
+                                     placeholder="Your password")
+            st.markdown("<div style='height:0.5rem'></div>", unsafe_allow_html=True)
+            if st.button("Log in →", type="primary", key="guest_login_btn",
+                         use_container_width=True):
+                users = st.session_state.users
+                if email in users and users[email]["password"] == password:
+                    st.session_state.current_user = email
+                    st.rerun()
+                else:
+                    st.error("Incorrect email or password.")
+
+    st.markdown("<div style='height:1.2rem'></div>", unsafe_allow_html=True)
+    _, col2, _ = st.columns([1, 1.6, 1])
+    with col2:
+        if st.button("← Back to guest mode", key="guest_back_btn",
+                     use_container_width=True):
+            st.session_state.active_page = "Discover"
+            st.rerun()
 
 
 # ── Logged-in view ────────────────────────────────────────────────────────────
