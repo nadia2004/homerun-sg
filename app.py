@@ -606,6 +606,7 @@ def _render_sidebar():
         if st.sidebar.button("🔍  New search", use_container_width=True):
             st.session_state.onboarding_step     = 1
             st.session_state.onboarding_complete = False
+            st.session_state.done_confirmed      = False
             st.session_state.active_page         = "Discover"
             st.rerun()
         st.sidebar.markdown('</div>', unsafe_allow_html=True)
@@ -657,6 +658,8 @@ def _run_onboarding():
             bundle     = get_prediction_bundle(inputs)
             map_bundle = get_map_bundle(inputs, bundle["recommendations_df"])
         create_search_session(inputs, bundle, map_bundle)
+        st.session_state.onboarding_complete = True
+        st.session_state.done_confirmed      = False  # reset for future new searches
         st.rerun()
 
 

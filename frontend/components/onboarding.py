@@ -140,7 +140,7 @@ def render_onboarding() -> bool:
     elif step == 9:
         _render_done()
         st.markdown("</div>", unsafe_allow_html=True)
-        return True
+        return st.session_state.get("done_confirmed", False)
 
     st.markdown("</div>", unsafe_allow_html=True)
     return False
@@ -651,10 +651,143 @@ def _render_anchors():
 
 def _render_done():
     """
-    This step finalises inputs and marks onboarding complete.
-    The calling code (app.py) will detect step == 8 and trigger the search.
+    Shows the animated completion screen.
+    onboarding_complete is only set True when the user clicks the CTA —
+    this lets the animation play fully before app.py triggers the search.
     """
-    st.session_state.onboarding_complete = True
+    components.html(
+        """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{
+  width:100%;height:100%;
+  font-family:'DM Sans',-apple-system,sans-serif;
+  background:#ffffff;
+  display:flex;align-items:center;justify-content:center;
+  overflow:hidden;
+}
+
+@keyframes pop     {from{opacity:0;transform:scale(0.3) rotate(-12deg)}to{opacity:1;transform:scale(1) rotate(0deg)}}
+@keyframes ring-in {from{opacity:0;transform:rotate(var(--r)) translateX(92px) scale(0)}
+                    to  {opacity:1;transform:rotate(var(--r)) translateX(92px) scale(1)}}
+@keyframes up      {from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+@keyframes shine   {0%{background-position:200% center}100%{background-position:-200% center}}
+@keyframes pulse   {0%,100%{opacity:0.35}50%{opacity:0.65}}
+@keyframes spin-slow{to{transform:rotate(360deg)}}
+
+/* page wrapper — centred column */
+.wrap{
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:center;text-align:center;
+  width:100%;padding:2rem 1.5rem;
+}
+
+/* orbital stage — ring + hero sit here */
+.stage{
+  position:relative;
+  width:220px;height:220px;
+  flex-shrink:0;
+  margin-bottom:1.6rem;
+}
+/* soft radial glow behind hero */
+.glow{
+  position:absolute;inset:-20px;border-radius:50%;
+  background:radial-gradient(ellipse,rgba(255,68,88,0.14) 0%,transparent 68%);
+  animation:pulse 3.5s ease-in-out infinite;
+}
+/* slow-spin dashed orbit ring */
+.ring-track{
+  position:absolute;inset:10px;border-radius:50%;
+  border:1.5px dashed rgba(255,107,107,0.25);
+  animation:spin-slow 20s linear infinite;
+}
+/* hero emoji — dead centre of stage */
+.hero{
+  position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:4rem;line-height:1;
+  filter:drop-shadow(0 4px 16px rgba(255,68,88,0.28));
+  animation:pop 0.7s cubic-bezier(0.22,1,0.36,1) both;animation-delay:0.08s;
+}
+/* orbital emoji spots */
+.orb{
+  position:absolute;
+  top:50%;left:50%;
+  width:0;height:0;
+  font-size:1.35rem;line-height:1;
+  /* each orb rotates to its angle then steps outward */
+  transform:rotate(var(--r)) translateX(92px) translateY(-50%);
+  animation:ring-in 0.45s cubic-bezier(0.22,1,0.36,1) both;
+  animation-delay:var(--d);
+}
+
+/* text block */
+.eyebrow{
+  font-size:0.6rem;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;
+  color:#FF6B6B;margin-bottom:0.65rem;
+  animation:up 0.45s ease both;animation-delay:0.92s;
+}
+.headline{
+  font-size:2.2rem;font-weight:800;letter-spacing:-0.05em;line-height:1.05;
+  margin-bottom:0.6rem;
+  background:linear-gradient(120deg,#FF6B6B 0%,#FF4458 35%,#FF8C69 65%,#FF6B6B 100%);
+  background-size:220% auto;
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  animation:up 0.5s ease both,shine 3.5s linear 2s infinite;
+  animation-delay:1.05s;animation-fill-mode:both;
+}
+.sub{
+  font-size:0.86rem;color:#64748b;font-weight:500;
+  max-width:270px;line-height:1.65;
+  animation:up 0.45s ease both;animation-delay:1.2s;
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- orbital stage -->
+  <div class="stage">
+    <div class="glow"></div>
+    <div class="ring-track"></div>
+
+    <!-- 8 orbital emojis, 45° apart, staggered in -->
+    <span class="orb" style="--r:0deg;   --d:0.30s;">🏠</span>
+    <span class="orb" style="--r:45deg;  --d:0.40s;">🔑</span>
+    <span class="orb" style="--r:90deg;  --d:0.50s;">💕</span>
+    <span class="orb" style="--r:135deg; --d:0.60s;">🌳</span>
+    <span class="orb" style="--r:180deg; --d:0.68s;">🛋️</span>
+    <span class="orb" style="--r:225deg; --d:0.74s;">🪴</span>
+    <span class="orb" style="--r:270deg; --d:0.80s;">✨</span>
+    <span class="orb" style="--r:315deg; --d:0.86s;">🌿</span>
+
+    <!-- hero -->
+    <div class="hero">🎯</div>
+  </div>
+
+  <!-- text -->
+  <div class="eyebrow">Preferences saved</div>
+  <div class="headline">You're all set!</div>
+  <p class="sub">Your personalised flat deck is ready to be built — hit the button below when you're ready.</p>
+
+</div>
+</body>
+</html>""",
+        height=400,
+        scrolling=False,
+    )
+
+    col = st.columns([1, 2, 1])[1]
+    with col:
+        if st.button("Build my deck →", key="done_cta", type="primary",
+                     use_container_width=True):
+            st.session_state.done_confirmed = True
+            st.rerun()
 
 
 # ── Build UserInputs from session state ──────────────────────────────────────
