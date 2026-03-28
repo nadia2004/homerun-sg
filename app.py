@@ -13,22 +13,24 @@ Flow:
 
 import streamlit as st
 import streamlit.components.v1 as components
+import base64
 from pathlib import Path
 from PIL import Image as _PILImage
 
-
 def _resolve_logo() -> str:
+    """Returns the path to the horizontal logo with text for the UI header."""
     base = Path(__file__).parent / "frontend" / "assets"
-    p = base / "homerun_icon.png"
+    p = base / "homerun_logo.png"
     return str(p) if p.exists() else ""
 
-
 def _load_page_icon():
-    """Return a square-cropped 64×64 PIL image for the browser tab icon."""
+    """Returns a square-cropped 64×64 image for the browser tab (favicon)."""
     base = Path(__file__).parent / "frontend" / "assets"
     p = base / "homerun_icon.png"
+
     if not p.exists():
-        return "🏠"
+        return None
+
     img = _PILImage.open(p).convert("RGBA")
     w, h = img.size
     side = min(w, h)
@@ -37,14 +39,30 @@ def _load_page_icon():
     img  = img.crop((left, top, left + side, top + side))
     return img.resize((64, 64), _PILImage.LANCZOS)
 
-
 _LOGO_PATH   = _resolve_logo()
 _PAGE_ICON   = _load_page_icon()
+
+
+def get_logo_img_tag(height: int = 40, use_icon: bool = False) -> str:
+    """
+    Helper to return a base64 encoded img tag.
+    Fixes the TypeError by accepting 'use_icon'.
+    """
+    base = Path(__file__).parent / "frontend" / "assets"
+    filename = "homerun_icon.png" if use_icon else "homerun_logo.png"
+    p = base / filename
+
+    if not p.exists():
+        return ""
+
+    with open(p, "rb") as f:
+        data = base64.b64encode(f.read()).decode()
+    return f'<img src="data:image/png;base64,{data}" height="{height}px" style="vertical-align: middle;">'
+
 
 from frontend.styles.css import inject_css
 from frontend.state.session import init_session_state, create_search_session
 
-from frontend.components.hero import get_logo_img_tag
 from frontend.components.onboarding import (
     render_onboarding,
     build_inputs_from_prefs,
@@ -69,7 +87,7 @@ from frontend.components.cards import (
 
 
 st.set_page_config(
-    page_title="HomeRun",
+    page_title="HomeRun SG",
     page_icon=_PAGE_ICON,
     layout="wide",
     initial_sidebar_state="expanded",
@@ -82,13 +100,11 @@ PAGES = ["Discover", "Saved", "Compare", "Account"]
 
 @st.dialog("Welcome to HomeRun", width="small")
 def _show_auth_dialog(initial_tab: str = "create"):
-    """Cancellable popup for account creation and login."""
     st.markdown(
         f"""
         <div style="text-align:center;margin-bottom:1.4rem;">
-            <div style="display:inline-block;border-radius:20px;overflow:hidden;
-                        box-shadow:0 4px 20px rgba(255,68,88,0.18);margin-bottom:0.9rem;">
-                {get_logo_img_tag(64)}
+            <div style="margin-bottom:0.9rem;">
+                {get_logo_img_tag(50)} 
             </div>
             <p style="font-size:0.88rem;color:#6b7280;margin:0;">
                 Your personalised HDB flat finder
