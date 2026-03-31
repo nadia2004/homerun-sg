@@ -245,29 +245,35 @@ def show_listing_detail(listing_id: str):
             </div>"""
         st.markdown(amenity_html, unsafe_allow_html=True)
 
-    # ── Market Context (pricing anchors from Insights) ────────────────────────
+        # ── Market Context (pricing anchors from Insights) ────────────────────────
     bundle = session_data["bundle"] if session_data else {}
     if bundle:
-        pred_bundle  = bundle.get("predicted_price", predicted)
-        trans        = bundle.get("recent_median_transacted", 0)
-        c_low        = bundle.get("confidence_low", round(pred_bundle * 0.96))
-        c_high       = bundle.get("confidence_high", round(pred_bundle * 1.04))
-        budget       = session_data["inputs"].budget if session_data else 0
-        headroom_pct = ((budget - pred_bundle) / pred_bundle * 100) if pred_bundle else 0
-        headroom_col = "#059669" if headroom_pct >= 0 else "#e11d48"
-        headroom_sign = "+" if headroom_pct >= 0 else ""
+        pred_bundle  = bundle.get("predicted_price", predicted) or predicted
+        trans        = bundle.get("recent_median_transacted", 0) or 0
+        c_low        = bundle.get("confidence_low", round(pred_bundle * 0.96)) or 0
+        c_high       = bundle.get("confidence_high", round(pred_bundle * 1.04)) or 0
+        budget       = getattr(session_data["inputs"], "budget", None) if session_data else None
 
-        st.markdown(
-            "<p style='font-size:0.68rem;font-weight:700;text-transform:uppercase;"
-            "letter-spacing:0.1em;color:#94a3b8;margin:14px 0 8px;'>Market Context</p>",
-            unsafe_allow_html=True,
-        )
-        mc1, mc2, mc3, mc4 = st.columns(4)
-        mc1.metric("Fair value",     fmt_sgd(pred_bundle))
-        mc2.metric("Recent median",  fmt_sgd(trans))
-        mc3.metric("Conf. band",     f"{fmt_sgd(c_low)} – {fmt_sgd(c_high)}")
-        mc4.metric("Budget headroom", f"{headroom_sign}{headroom_pct:.1f}%",
-                   delta_color="normal")
+    headroom_pct = 0
+    headroom_sign = ""
+    headroom_col = "#059669"
+
+    if pred_bundle is not None and budget is not None:
+        headroom_pct = (budget - pred_bundle) / pred_bundle * 100
+        headroom_sign = "+" if headroom_pct >= 0 else ""
+        headroom_col = "#059669" if headroom_pct >= 0 else "#e11d48"
+
+    st.markdown(
+        "<p style='font-size:0.68rem;font-weight:700;text-transform:uppercase;"
+        "letter-spacing:0.1em;color:#94a3b8;margin:14px 0 8px;'>Market Context</p>",
+        unsafe_allow_html=True,
+    )
+    mc1, mc2, mc3, mc4 = st.columns(4)
+    mc1.metric("Fair value",     fmt_sgd(pred_bundle))
+    mc2.metric("Recent median",  fmt_sgd(trans))
+    mc3.metric("Conf. band",     f"{fmt_sgd(c_low)} – {fmt_sgd(c_high)}")
+    mc4.metric("Budget headroom", f"{headroom_sign}{headroom_pct:.1f}%",
+            delta_color="normal")
 
     # ── Mini map ──────────────────────────────────────────────────────────────
     town = row_data.get("town", "")

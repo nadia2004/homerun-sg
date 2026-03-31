@@ -4,3 +4,4 @@ numpy
 pydeck
 requests
 python-dotenv
+openpyxl

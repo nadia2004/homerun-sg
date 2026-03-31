@@ -8,11 +8,11 @@ from backend.utils.scoring import compute_listing_scores
 
 
 def render_value_cards(bundle: Dict[str, Any], budget: int):
-    pred = bundle["predicted_price"]
-    trans = bundle["recent_median_transacted"]
-    low = bundle.get("confidence_low", round(pred * 0.96))
-    high = bundle.get("confidence_high", round(pred * 1.04))
-    gap_pct = ((budget - pred) / pred) * 100 if pred else 0
+    pred = bundle.get("predicted_price") or 0
+    trans = bundle.get("recent_median_transacted") or 0
+    low = bundle.get("confidence_low", round(pred * 0.96)) or 0
+    high = bundle.get("confidence_high", round(pred * 1.04)) or 0
+    gap_pct = ((budget - pred) / pred) * 100 if (pred and budget is not None) else 0
 
     c1, c2, c3, c4 = st.columns(4)
     with c1:
@@ -26,8 +26,12 @@ def render_value_cards(bundle: Dict[str, Any], budget: int):
 
 
 def render_budget_banner(bundle: Dict[str,Any], budget: int):
-    pred = bundle["predicted_price"]
-    gap  = (budget-pred)/pred
+    pred = bundle.get("predicted_price") or 0
+    if not pred or budget is None:
+        st.markdown(f'<div class="nw-budget-warn">Budget info unavailable</div>', unsafe_allow_html=True)
+        return
+
+    gap  = (budget - pred)/pred
     if gap >= 0.05:
         css, icon = "nw-budget-ok",   "✓"
         msg = f"{icon} Your budget is {gap*100:.1f}% above the predicted fair value — you have good room to negotiate."

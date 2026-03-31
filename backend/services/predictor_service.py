@@ -1,6 +1,6 @@
 import numpy as np
 
-from backend.services.listings_service import mock_active_listings
+from backend.services.listings_service import get_active_listings
 from backend.services.recommendation_service import mock_recommend_towns
 from backend.schemas.inputs import UserInputs
 from backend.utils.scoring import compute_listing_scores
@@ -49,7 +49,7 @@ def get_prediction_bundle(inputs: UserInputs, ranking_profile: str = "balanced")
     recent_median_transacted = round(mock_recent_transaction_median(inputs))
 
     # Raw listings (may be empty in a real backend after hard filters)
-    listings_df = mock_active_listings(inputs)
+    listings_df = get_active_listings(inputs)
 
     # Apply hard budget filter only if user set a budget
     if inputs.budget is not None:
