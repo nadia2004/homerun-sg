@@ -14,8 +14,7 @@ New flow:
   6  Priority mode
   7  Preferences quiz
   8  Predicted amenity ranking review / reorder
-  9  Anchor postals
- 10  Done → triggers search
+  9  Done → triggers search
 """
 
 import streamlit as st
@@ -31,7 +30,7 @@ except Exception:
     HAS_SORTABLES = False
 
 
-TOTAL_STEPS = 10   # steps 1-10, step 0 is welcome
+TOTAL_STEPS = 9   # steps 1-9, step 0 is welcome
 
 AMENITY_ICONS = {
     "mrt": "🚇",
@@ -68,91 +67,56 @@ ACCENT_BORDER = "#FF4458"
 QUESTION_BANK = [
     {
         "id": "q1",
-        "text": "Which of these feels most like your usual evening?",
+        "text": "What makes your daily commute feel easiest?",
         "options": [
-            {"id": "q1_a", "label": "Whipping something up at home", "amenity": "supermarket"},
-            {"id": "q1_b", "label": "Grabbing a quick meal nearby", "amenity": "hawker"},
-            {"id": "q1_c", "label": "Heading to the mall for dinner and errands", "amenity": "mall"},
+            {"id": "q1_a", "label": "A fast MRT connection", "amenity": "train"},
+            {"id": "q1_b", "label": "A bus stop very close to home", "amenity": "bus"},
+            {"id": "q1_c", "label": "I don’t mind either, as long as essentials are nearby", "amenity": "mall"},
         ],
     },
     {
         "id": "q2",
-        "text": "What makes getting home feel easiest?",
+        "text": "On most days, how do you usually handle meals?",
         "options": [
-            {"id": "q2_a", "label": "A fast MRT ride", "amenity": "train"},
-            {"id": "q2_b", "label": "A bus stop close to home", "amenity": "bus"},
-            {"id": "q2_c", "label": "Car / Grab", "amenity": None},
+            {"id": "q2_a", "label": "I like affordable cooked food nearby", "amenity": "hawker"},
+            {"id": "q2_b", "label": "I usually buy food while running errands at a mall", "amenity": "mall"},
+            {"id": "q2_c", "label": "I prefer buying groceries and preparing food at home", "amenity": "supermarket"},
         ],
     },
     {
         "id": "q3",
-        "text": "How do you usually stock up on food?",
+        "text": "On a busy weekday, which nearby option would help you the most?",
         "options": [
-            {"id": "q3_a", "label": "Frequent supermarket top-ups", "amenity": "supermarket"},
-            {"id": "q3_b", "label": "I mostly eat out or takeaway", "amenity": "hawker"},
-            {"id": "q3_c", "label": "I usually buy food while at the mall", "amenity": "mall"},
+            {"id": "q3_a", "label": "MRT access", "amenity": "train"},
+            {"id": "q3_b", "label": "A one-stop place for errands and essentials", "amenity": "mall"},
+            {"id": "q3_c", "label": "A nearby clinic or polyclinic", "amenity": "polyclinic"},
         ],
     },
     {
         "id": "q4",
-        "text": "On a busy weekday, which convenience matters most?",
+        "text": "Which of these matters more for your household right now?",
         "options": [
-            {"id": "q4_a", "label": "Bus stop downstairs", "amenity": "bus"},
-            {"id": "q4_b", "label": "Mall nearby for one-stop convenience", "amenity": "mall"},
-            {"id": "q4_c", "label": "Polyclinic nearby for peace of mind", "amenity": "polyclinic"},
+            {"id": "q4_a", "label": "Good school access", "amenity": "primary_school"},
+            {"id": "q4_b", "label": "Healthcare nearby", "amenity": "polyclinic"},
+            {"id": "q4_c", "label": "Good public transport connectivity", "amenity": "train"},
         ],
     },
     {
         "id": "q5",
-        "text": "Which of these would improve your daily routine the most?",
+        "text": "What sounds most like your usual weekend?",
         "options": [
-            {"id": "q5_a", "label": "Shorter MRT commute", "amenity": "train"},
-            {"id": "q5_b", "label": "Affordable food options nearby", "amenity": "hawker"},
-            {"id": "q5_c", "label": "Groceries within easy reach", "amenity": "supermarket"},
+            {"id": "q5_a", "label": "Eating around the neighbourhood and staying close to home", "amenity": "hawker"},
+            {"id": "q5_b", "label": "Shopping, errands, cafés, or mall time", "amenity": "mall"},
+            {"id": "q5_c", "label": "Family-oriented routines where nearby schools and amenities matter", "amenity": "primary_school"},
         ],
     },
     {
         "id": "q6",
-        "text": "What sounds most like your weekend?",
+        "text": "If you had to prioritise one, which would you choose?",
         "options": [
-            {"id": "q6_a", "label": "Walking around the mall", "amenity": "mall"},
-            {"id": "q6_b", "label": "Meal prep and grocery run", "amenity": "supermarket"},
-            {"id": "q6_c", "label": "Trying nearby food spots", "amenity": "hawker"},
-        ],
-    },
-    {
-        "id": "q7",
-        "text": "Which would make you feel more settled in a neighbourhood?",
-        "options": [
-            {"id": "q7_a", "label": "Healthcare nearby", "amenity": "polyclinic"},
-            {"id": "q7_b", "label": "School access is important for my household", "amenity": "primary_school"},
-            {"id": "q7_c", "label": "Good transport connectivity", "amenity": "train"},
-        ],
-    },
-    {
-        "id": "q8",
-        "text": "If you need to pop out quickly, what would you most want nearby?",
-        "options": [
-            {"id": "q8_a", "label": "Bus stop", "amenity": "bus"},
-            {"id": "q8_b", "label": "Mall with many things in one place", "amenity": "mall"},
-            {"id": "q8_c", "label": "Polyclinic", "amenity": "polyclinic"},
-        ],
-    },
-    {
-        "id": "q9",
-        "text": "Which statement sounds most like you?",
-        "options": [
-            {"id": "q9_a", "label": "School access is important now or soon", "amenity": "primary_school"},
-            {"id": "q9_b", "label": "Food convenience matters more", "amenity": "hawker"},
-            {"id": "q9_c", "label": "Transport convenience matters more", "amenity": "train"},
-        ],
-    },
-    {
-        "id": "q10",
-        "text": "Which trade-off would you choose?",
-        "options": [
-            {"id": "q10_a", "label": "Near MRT over more food options", "amenity": "train"},
-            {"id": "q10_b", "label": "Near hawker over faster transport", "amenity": "hawker"},
+            {"id": "q6_a", "label": "Being near MRT over having more food options", "amenity": "train"},
+            {"id": "q6_b", "label": "Having food options nearby over faster transport", "amenity": "hawker"},
+            {"id": "q6_c", "label": "Having everyday essentials in one place", "amenity": "mall"},
         ],
     },
 ]
@@ -399,8 +363,6 @@ def render_onboarding() -> bool:
     elif step == 8:
         _render_predicted_amenity_ranking()
     elif step == 9:
-        _render_anchors()
-    elif step == 10:
         _render_done()
         st.markdown("</div>", unsafe_allow_html=True)
         return True
@@ -958,68 +920,7 @@ def _render_predicted_amenity_ranking():
     _back_btn("amenity_back")
 
 
-# ── Step 9: Anchors (optional) ───────────────────────────────────────────────
-
-def _render_anchors():
-    _progress_bar(9)
-    _step_label(9)
-    _heading(
-        "Any anchor locations?",
-        "Optional: add up to 2 postal codes (workplace, parents, etc.) so we can factor proximity into your deck."
-    )
-
-    p1, p2 = st.columns(2)
-    existing = st.session_state.get("pref_landmark_postals") or []
-
-    with p1:
-        v1 = st.text_input(
-            "Postal code 1",
-            value=existing[0] if len(existing) > 0 else "",
-            placeholder="e.g. 119077",
-            key="anchor_1"
-        )
-    with p2:
-        v2 = st.text_input(
-            "Postal code 2",
-            value=existing[1] if len(existing) > 1 else "",
-            placeholder="e.g. 560215",
-            key="anchor_2"
-        )
-
-    postals = [p.strip() for p in [v1, v2] if p.strip()]
-    has_any_postal = len(postals) > 0
-
-    cols = st.columns([1, 1])
-    with cols[0]:
-        if st.button("Skip this step", key="anchor_skip", use_container_width=True):
-            st.session_state.pref_landmark_postals = []
-            st.session_state.onboarding_step = 10
-            st.rerun()
-
-    with cols[1]:
-        if st.button(
-            "Save & continue →",
-            key="anchor_next",
-            type="primary",
-            use_container_width=True,
-            disabled=not has_any_postal,
-        ):
-            st.session_state.pref_landmark_postals = postals
-            st.session_state.onboarding_step = 10
-            st.rerun()
-
-    if not has_any_postal:
-        st.markdown(
-            "<p style='font-size:0.82rem;color:#9ca3af;margin-top:0.6rem;'>"
-            "Enter at least 1 postal code to save and continue, or skip this step."
-            "</p>",
-            unsafe_allow_html=True,
-        )
-
-    _back_btn("anchor_back")
-
-
-# ── Step 10: Done / trigger search ───────────────────────────────────────────
+# ── Step 9: Done / trigger search ────────────────────────────────────────────
 
 def _render_done():
     st.session_state.onboarding_complete = True
@@ -1049,7 +950,7 @@ def build_inputs_from_prefs() -> UserInputs:
         school_scope=st.session_state.get("pref_school_scope", "Any"),
         amenity_weights=amenity_weights,
         amenity_rank=rank,
-        landmark_postals=st.session_state.get("pref_landmark_postals") or [],
+        landmark_postals=[],
     )
 
 
@@ -1072,5 +973,4 @@ def get_preferences_display() -> dict:
         "Amenity ranking": " → ".join(
             f"{AMENITY_ICONS.get(k, '')} {AMENITY_LABELS.get(k, k)}" for k in rank
         ) or "—",
-        "Anchors": ", ".join(st.session_state.get("pref_landmark_postals") or []) or "None",
     }
