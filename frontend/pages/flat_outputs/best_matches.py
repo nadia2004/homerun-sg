@@ -134,10 +134,13 @@ def render_listing_tab(listings_df: pd.DataFrame):
     inputs = session["inputs"]
 
     # Ensure unseen_ids are populated after quiz
-    if not session["unseen_ids"]:
+    if session.get("unseen_ids") is None:
         session["unseen_ids"] = list(listings_df["listing_id"])
+    if session.get("liked_ids") is None:
         session["liked_ids"] = []
+    if session.get("passed_ids") is None:
         session["passed_ids"] = []
+    if session.get("super_ids") is None:
         session["super_ids"] = []
 
     unseen_ids = session["unseen_ids"]
@@ -224,21 +227,14 @@ def render_listing_tab(listings_df: pd.DataFrame):
 def _render_swipe_controls(session_id: str, top_id: str | None):
     if not top_id:
         return
-    col1, col2, col3, col4, col5 = st.columns([1, 1, 0.6, 1, 1])
-    with col2:
+    _, col1, col2, _ = st.columns([1.2, 1, 1, 1.2])
+    with col1:
         if st.button("✕  Pass", key=f"pass_{top_id}", use_container_width=True):
             record_swipe(session_id, top_id, "left")
             st.rerun()
-    with col3:
-        st.markdown("<div style='height:38px'></div>", unsafe_allow_html=True)
-    with col4:
+    with col2:
         if st.button("♥  Save", key=f"save_{top_id}", type="primary", use_container_width=True):
             record_swipe(session_id, top_id, "right")
-            st.rerun()
-    _, mid, _ = st.columns([2, 1, 2])
-    with mid:
-        if st.button("⭐ Super", key=f"super_{top_id}", use_container_width=True):
-            record_swipe(session_id, top_id, "up")
             st.rerun()
 
 
@@ -375,9 +371,7 @@ def _build_swipe_html(cards_json: str, session_id: str) -> str:
             isDragging = false;
             let direction = null;
             if (Math.abs(offsetX) > 120 || Math.abs(offsetY) > 150) {
-                if (Math.abs(offsetY) > Math.abs(offsetX) && offsetY < -150) {
-                    direction = 'up';       // super-swipe
-                } else if (offsetX > 120) {
+                if (offsetX > 120) {
                     direction = 'right';    // save
                 } else {
                     direction = 'left';     // pass

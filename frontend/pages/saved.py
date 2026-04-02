@@ -320,7 +320,7 @@ html,body{width:100%;height:100%;font-family:'DM Sans',-apple-system,sans-serif;
             unsafe_allow_html=True,
         )
 
-        btn_a, btn_b, btn_c = st.columns([1.3, 1, 1])
+        btn_a, btn_b, btn_c, btn_d = st.columns([1.2, 0.9, 0.9, 0.9])
         with btn_a:
             if st.button(
                 "View details →",
@@ -341,6 +341,20 @@ html,body{width:100%;height:100%;font-family:'DM Sans',-apple-system,sans-serif;
                 st.rerun()
 
         with btn_c:
+            fav_label = "★ Favourited" if is_super else "⭐ Favourite"
+            if st.button(fav_label, key=f"fav_{lid}_{session_id}_{idx}", use_container_width=True):
+                for s in st.session_state.search_sessions:
+                    if s["session_id"] == session_id:
+                        if "super_ids" not in s:
+                            s["super_ids"] = []
+                        if lid in s["super_ids"]:
+                            s["super_ids"].remove(lid)
+                        else:
+                            s["super_ids"].append(lid)
+                        break
+                st.rerun()
+
+        with btn_d:
             if st.button("Remove", key=f"rm_{lid}_{session_id}_{idx}", use_container_width=True):
                 for s in st.session_state.search_sessions:
                     if s["session_id"] == session_id:
