@@ -450,7 +450,7 @@ def _render_add_hypothetical_flat(inputs):
 
         st.session_state.setdefault("custom_compare_rows", [])
 
-        room_options = ["2 ROOM", "3 ROOM", "4 ROOM", "5 ROOM", "EXECUTIVE"]
+        room_options = ["1 ROOM", "2 ROOM", "3 ROOM", "4 ROOM", "5 ROOM", "EXECUTIVE", "MULTI-GENERATION"]
         default_type = inputs.flat_type if getattr(inputs, "flat_type", None) in room_options else "4 ROOM"
 
         floor_options = [
@@ -573,9 +573,13 @@ def _render_add_hypothetical_flat(inputs):
         try:
             bundle = get_prediction_bundle(scenario_inputs)
             predicted_price = bundle.get("predicted_price", hyp_budget)
+            confidence_low = bundle.get("confidence_low", np.nan)
+            confidence_high = bundle.get("confidence_high", np.nan)
             recent_transacted = bundle.get("recent_median_transacted", np.nan)
         except Exception:
             predicted_price = hyp_budget
+            confidence_low = np.nan
+            confidence_high = np.nan
             recent_transacted = np.nan
 
         if pd.notna(predicted_price) and predicted_price != 0:
@@ -605,6 +609,8 @@ def _render_add_hypothetical_flat(inputs):
             "storey_range": hyp_floor_pref,
             "asking_price": float(hyp_budget),
             "predicted_price": float(predicted_price) if pd.notna(predicted_price) else np.nan,
+            "confidence_low": float(confidence_low) if pd.notna(confidence_low) else np.nan,
+            "confidence_high": float(confidence_high) if pd.notna(confidence_high) else np.nan,
             "recent_median_transacted": recent_transacted,
             "asking_vs_predicted_pct": asking_vs_predicted_pct,
             "valuation_label": valuation_label,

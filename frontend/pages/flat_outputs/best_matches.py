@@ -4,7 +4,6 @@ frontend/pages/flat_outputs/best_matches.py
 Tinder-style swipe deck:
   Right / ♥  → Like (shortlist)
   Left  / ✕  → Pass (skip)
-  Up    / ⭐  → Super-save (highlight + shortlist)
   Click card → Detail overlay
 """
 
@@ -17,6 +16,7 @@ from backend.utils.formatters import fmt_sgd, valuation_tag_html
 from backend.utils.constants import TOWN_COORDS
 from frontend.state.session import get_active_session, record_swipe
 from frontend.components.listing_detail import show_listing_detail
+
 
 DEFAULT_COORD = (1.3521, 103.8198)
 
@@ -102,6 +102,7 @@ def _build_card_data(df: pd.DataFrame, inputs, unseen_ids: list) -> list:
         card = {
             "id": str(row.get("listing_id", "")),
             "town": town,
+            "address": str(row.get("address", row.get("full_address", ""))),
             "flat_type": str(row.get("flat_type", "")),
             "area": float(row.get("floor_area_sqm", 0)),
             "storey": str(row.get("storey_range", "")),
@@ -300,17 +301,177 @@ def _build_swipe_html(cards_json: str, session_id: str) -> str:
     <html>
     <head>
     <style>
-    body { font-family: 'Segoe UI', sans-serif; margin:0; padding:0; background:#f1f5f9;
-           display:flex; justify-content:center; align-items:center; height:100vh; }
-    #deck { width:360px; height:650px; position:relative; perspective:1000px; }
-    .card { width:340px; height:460px; border-radius:16px; background:#fff;
-            box-shadow:0 8px 20px rgba(0,0,0,0.25); position:absolute; top:20px; left:10px;
-            display:flex; flex-direction:column; justify-content:space-between; padding:16px;
-            overflow-wrap: break-word; transition: transform 0.3s ease, opacity 0.3s ease; cursor:grab; }
-    .card h4 { margin:0 0 4px 0; font-size:1.1rem; font-weight:700; color:#1e293b; }
-    .card p { margin:2px 0; font-size:0.8rem; color:#334155; }
-    .val-label { font-weight:700; padding:2px 6px; border-radius:6px; font-size:0.75rem;
-                 color:#fff; display:inline-block; margin-top:4px; }
+    body {
+        font-family: 'Inter', 'Segoe UI', sans-serif;
+        margin: 0;
+        padding: 0;
+        background: #f8fafc;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+    }
+
+    #deck {
+        width: 390px;
+        height: 760px;
+        position: relative;
+        perspective: 1000px;
+    }
+
+    .card {
+        width: 360px;
+        height: 560px;
+        border-radius: 24px;
+        background: linear-gradient(180deg, #ffffff 0%, #fcfcfd 100%);
+        box-shadow: 0 18px 30px rgba(15, 23, 42, 0.14);
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        margin-left: -180px;
+        margin-top: -280px;
+        padding: 20px 18px 18px 18px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        overflow: hidden;
+        overflow-wrap: break-word;
+        transition: transform 0.3s ease, opacity 0.3s ease;
+        cursor: grab;
+        border: 1px solid rgba(226, 232, 240, 0.9);
+    }
+
+    .card-top {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .card-title {
+        font-size: 1.2rem;
+        font-weight: 800;
+        color: #0f172a;
+        line-height: 1.2;
+        letter-spacing: -0.02em;
+    }
+
+    .card-sub {
+        font-size: 0.84rem;
+        color: #64748b;
+        line-height: 1.4;
+    }
+
+    .card-price {
+        margin-top: 10px;
+        padding: 14px;
+        border-radius: 16px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+    }
+
+    .card-price-main {
+        font-size: 1.15rem;
+        font-weight: 800;
+        color: #0f172a;
+    }
+
+    .card-price-sub {
+        font-size: 0.82rem;
+        color: #64748b;
+        margin-top: 4px;
+    }
+
+    .meta-row {
+        margin-top: 10px;
+        font-size: 0.84rem;
+        color: #334155;
+        font-weight: 600;
+    }
+
+    .pill-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+    }
+
+    .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 0.74rem;
+        font-weight: 700;
+        border: 1px solid #e2e8f0;
+        color: #334155;
+        background: #fff;
+    }
+
+    .val-pill {
+        color: #fff;
+        border: none;
+    }
+
+    .match-box {
+        margin-top: 14px;
+        padding: 14px;
+        border-radius: 16px;
+        background: #fff7ed;
+        border: 1px solid #fed7aa;
+    }
+
+    .match-label {
+        font-size: 0.7rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #c2410c;
+        margin-bottom: 6px;
+    }
+
+    .match-text {
+        font-size: 0.82rem;
+        line-height: 1.45;
+        color: #7c2d12;
+    }
+
+    .map-wrap {
+        margin-top: 14px;
+    }
+
+    .map-label {
+        font-size: 0.7rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #94a3b8;
+        margin-bottom: 8px;
+    }
+
+    .map-frame {
+        width: 100%;
+        height: 150px;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        overflow: hidden;
+        background: #f8fafc;
+    }
+
+    .map-frame iframe {
+        width: 100%;
+        height: 100%;
+        border: 0;
+    }
+
+    .card-footer {
+        margin-top: 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.78rem;
+        color: #94a3b8;
+    }
     </style>
     </head>
     <body>
@@ -325,14 +486,47 @@ def _build_swipe_html(cards_json: str, session_id: str) -> str:
         card.className = 'card';
         card.style.zIndex = cardsData.length - topIndex;
         const valColor = c.label_color || '#2563eb';
+
         card.innerHTML = `
-            <h4>${c.town} · ${c.flat_type}</h4>
-            <p style="font-weight:600; font-size:0.9rem;">${c.address || 'No address'}</p>
-            <p>Area: ${c.area} sqm · Storey: ${c.storey}</p>
-            <p>Asking: ${c.asking.toLocaleString()} SGD · Predicted: ${c.predicted.toLocaleString()} SGD</p>
-            <p class="val-label" style="background:${valColor}">${c.label}</p>
-            <p>${c.diff_pct >=0? '+' : ''}${c.diff_pct}% vs model</p>
-            <p style="margin-top:8px; font-size:0.78rem; color:#475569;">${c.why}</p>
+            <div class="card-top">
+                <div class="card-title">${c.town} · ${c.flat_type}</div>
+                <div class="card-sub">${c.address || 'No address available'}</div>
+
+                <div class="card-price">
+                    <div class="card-price-main">$${c.asking.toLocaleString()}</div>
+                    <div class="card-price-sub">Est. fair value: $${c.predicted.toLocaleString()}</div>
+                </div>
+
+                <div class="meta-row">
+                    ${c.area} sqm · Storey ${c.storey || '-'}
+                </div>
+
+                <div class="pill-row">
+                    <span class="pill val-pill" style="background:${valColor}">${c.label}</span>
+                    <span class="pill">${c.diff_pct >= 0 ? '+' : ''}${c.diff_pct}% vs model</span>
+                </div>
+
+                <div class="match-box">
+                    <div class="match-label">Why it matches</div>
+                    <div class="match-text">${c.why}</div>
+                </div>
+
+                <div class="map-wrap">
+                    <div class="map-label">Location</div>
+                    <div class="map-frame">
+                        <iframe
+                            src="${c.map_url}"
+                            loading="lazy"
+                            referrerpolicy="no-referrer-when-downgrade">
+                        </iframe>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-footer">
+                <span>Swipe left to pass</span>
+                <span>Swipe right to save</span>
+            </div>
         `;
         return card;
     }
@@ -370,11 +564,12 @@ def _build_swipe_html(cards_json: str, session_id: str) -> str:
         card.addEventListener('pointerup', e => {
             isDragging = false;
             let direction = null;
+
             if (Math.abs(offsetX) > 120 || Math.abs(offsetY) > 150) {
                 if (offsetX > 120) {
-                    direction = 'right';    // save
+                    direction = 'right';
                 } else {
-                    direction = 'left';     // pass
+                    direction = 'left';
                 }
 
                 card.style.transition = 'transform 0.5s ease, opacity 0.5s ease';
@@ -389,6 +584,7 @@ def _build_swipe_html(cards_json: str, session_id: str) -> str:
                     };
                     window.parent.postMessage({type:'swipe', data: swipeEvent}, "*");
                 }
+
                 topIndex += 1;
                 setTimeout(renderDeck, 300);
             } else {
