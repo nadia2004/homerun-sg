@@ -154,6 +154,7 @@ html,body{width:100%;height:100%;font-family:'DM Sans',-apple-system,sans-serif;
 
         if latest_inputs is not None and latest_map_bundle is not None:
             visible = top_priority_keys(latest_inputs.amenity_weights, 3)
+            visible = ["retail" if k == "mall" else k for k in visible]
             amenities_df = latest_map_bundle.get("amenities_df", pd.DataFrame())
 
         if saved_points is not None and not saved_points.empty:
@@ -174,8 +175,9 @@ html,body{width:100%;height:100%;font-family:'DM Sans',-apple-system,sans-serif;
 
                 for amenity_type in visible:
                     col = f"nearest_{amenity_type}_km"
+                    label_key = "retail" if amenity_type == "mall" else amenity_type
                     if col in r and r[col] != "":
-                        lines.append(f"<b>Nearest {AMENITY_LABELS[amenity_type]}:</b> {r[col]} km")
+                        lines.append(f"<b>Nearest {AMENITY_LABELS.get(label_key, amenity_type.replace('_', ' ').title())}:</b> {r[col]} km")
 
                 return "<br/>".join(lines)
 
@@ -252,8 +254,9 @@ html,body{width:100%;height:100%;font-family:'DM Sans',-apple-system,sans-serif;
                     rename_map = {"listing_id": "Listing ID", "town": "Town"}
                     for k in visible:
                         col = f"nearest_{k}_km"
+                        label_key = "retail" if k == "mall" else k
                         if col in summary.columns:
-                            rename_map[col] = f"Nearest {AMENITY_LABELS[k]} (km)"
+                            rename_map[col] = f"Nearest {AMENITY_LABELS.get(label_key, k.replace('_', ' ').title())} (km)"
                     summary = summary.rename(columns=rename_map)
 
                     st.markdown("**Nearest amenity distances**")
