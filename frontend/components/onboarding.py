@@ -52,19 +52,23 @@ FRONTEND_AMENITY_LABELS = {
 }
 
 FLAT_TYPE_LABELS = {
+    "1 ROOM": "1-Room",
     "2 ROOM": "2-Room",
     "3 ROOM": "3-Room",
     "4 ROOM": "4-Room",
     "5 ROOM": "5-Room",
     "EXECUTIVE": "Executive",
+    "MULTI-GENERATION": "Multi-Generation",
 }
 
 FLAT_ICONS = {
+    "1 ROOM": "🏢",
     "2 ROOM": "🏠",
     "3 ROOM": "🏡",
     "4 ROOM": "🏘️",
     "5 ROOM": "🏗️",
     "EXECUTIVE": "🏛️",
+    "MULTI-GENERATION": "🏠👨‍👩‍👧‍👦",
 }
 
 ACCENT = "#FF4458"

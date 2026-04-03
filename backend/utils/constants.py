@@ -2,13 +2,15 @@
 # Towns & Flat Types
 # ---------------------------------------------------------------------------
 TOWNS = [
-    "Ang Mo Kio", "Bedok", "Bishan", "Bukit Batok", "Bukit Merah",
-    "Choa Chu Kang", "Clementi", "Hougang", "Jurong West",
-    "Kallang/Whampoa", "Pasir Ris", "Queenstown", "Sembawang",
-    "Sengkang", "Tampines", "Toa Payoh", "Woodlands", "Yishun",
+    "ANG MO KIO", "BEDOK", "BISHAN", "BUKIT BATOK", "BUKIT MERAH",
+    "BUKIT PANJANG", "BUKIT TIMAH", "CENTRAL AREA", "CHOA CHU KANG",
+    "CLEMENTI", "GEYLANG", "HOUGANG", "JURONG EAST", "JURONG WEST",
+    "KALLANG/WHAMPOA", "MARINE PARADE", "PASIR RIS", "PUNGGOL",
+    "QUEENSTOWN", "SEMBAWANG", "SENGKANG", "SERANGOON", "TAMPINES",
+    "TOA PAYOH", "WOODLANDS", "YISHUN",
 ]
 
-FLAT_TYPES = ["2 ROOM", "3 ROOM", "4 ROOM", "5 ROOM", "EXECUTIVE"]
+FLAT_TYPES = ["1 ROOM", "2 ROOM", "3 ROOM", "4 ROOM", "5 ROOM", "EXECUTIVE", "MULTI-GENERATION"]
 
 # ---------------------------------------------------------------------------
 # School Options
@@ -60,24 +62,32 @@ AMENITY_KEYS = [
 # Town Coordinates
 # ---------------------------------------------------------------------------
 TOWN_COORDS = {
-    "Ang Mo Kio": (1.3691, 103.8454),
-    "Bedok": (1.3236, 103.9273),
-    "Bishan": (1.3500, 103.8485),
-    "Bukit Batok": (1.3496, 103.7528),
-    "Bukit Merah": (1.2773, 103.8195),
-    "Choa Chu Kang": (1.3854, 103.7443),
-    "Clementi": (1.3151, 103.7651),
-    "Hougang": (1.3612, 103.8863),
-    "Jurong West": (1.3404, 103.7068),
-    "Kallang/Whampoa": (1.3123, 103.8660),
-    "Pasir Ris": (1.3731, 103.9493),
-    "Queenstown": (1.2942, 103.7860),
-    "Sembawang": (1.4491, 103.8201),
-    "Sengkang": (1.3909, 103.8952),
-    "Tampines": (1.3496, 103.9568),
-    "Toa Payoh": (1.3343, 103.8563),
-    "Woodlands": (1.4360, 103.7865),
-    "Yishun": (1.4294, 103.8354),
+    "ANG MO KIO":     (1.3691, 103.8454),
+    "BEDOK":          (1.3236, 103.9273),
+    "BISHAN":         (1.3500, 103.8485),
+    "BUKIT BATOK":    (1.3496, 103.7528),
+    "BUKIT MERAH":    (1.2773, 103.8195),
+    "BUKIT PANJANG":  (1.3774, 103.7719),
+    "BUKIT TIMAH":    (1.3294, 103.8021),
+    "CENTRAL AREA":   (1.2897, 103.8501),
+    "CHOA CHU KANG":  (1.3854, 103.7443),
+    "CLEMENTI":       (1.3151, 103.7651),
+    "GEYLANG":        (1.3201, 103.8831),
+    "HOUGANG":        (1.3612, 103.8863),
+    "JURONG EAST":    (1.3329, 103.7436),
+    "JURONG WEST":    (1.3404, 103.7068),
+    "KALLANG/WHAMPOA":(1.3123, 103.8660),
+    "MARINE PARADE":  (1.3023, 103.9063),
+    "PASIR RIS":      (1.3731, 103.9493),
+    "PUNGGOL":        (1.4043, 103.9021),
+    "QUEENSTOWN":     (1.2942, 103.7860),
+    "SEMBAWANG":      (1.4491, 103.8201),
+    "SENGKANG":       (1.3909, 103.8952),
+    "SERANGOON":      (1.3554, 103.8679),
+    "TAMPINES":       (1.3496, 103.9568),
+    "TOA PAYOH":      (1.3343, 103.8563),
+    "WOODLANDS":      (1.4360, 103.7865),
+    "YISHUN":         (1.4294, 103.8354),
 }
 
 # ---------------------------------------------------------------------------

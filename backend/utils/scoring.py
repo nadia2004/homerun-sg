@@ -113,6 +113,11 @@ def compute_listing_scores(listings_df, budget: int | None, amenity_weights: dic
 
     df["amenity_score"] = df.apply(weighted_amenity, axis=1).round(1)
 
+    # Aliases so best_matches.py can look up {amen}_score by the frontend amenity key
+    df["healthcare_score"] = df["health_score"]
+    df["schools_score"]    = df["school_score"]
+    df["retail_score"]     = df["mall_score"]
+
     # ─────────────────────────────────────────
     # FINAL SCORE
     # ─────────────────────────────────────────

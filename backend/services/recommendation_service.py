@@ -2,90 +2,54 @@
 import pandas as pd
 from data.load_data import load_all_data
 from backend.schemas.inputs import UserInputs
-from backend.services.recommender import run_recommender
 from backend.utils.constants import AMENITY_KEYS
 
-# ── Amenity scoring helper ─────────────────────────────────────────────────────
-def compute_amenity_scores(df: pd.DataFrame) -> pd.DataFrame:
-    for amen in AMENITY_KEYS:
-        col = f"walk_{amen}_avg_mins"
-        if col in df.columns:
-            df[f"{amen}_score"] = df[col].apply(
-                lambda x: 100 * np.exp(-x / 8) if pd.notna(x) else 40
-            )
-        else:
-            df[f"{amen}_score"] = 40
 
-    df["amenity_avg"] = df[[f"{a}_score" for a in AMENITY_KEYS]].mean(axis=1)
-    return df
-
-# ── Town-level recommendations ────────────────────────────────────────────────
 def recommend_towns_real(
     inputs: UserInputs,
     df: pd.DataFrame,
-    amenity_ranking: list[str] = None,
-    amenity_weights: dict[str, float] = None,
-    top_n: int = 5
+    amenity_ranking: list = None,
+    amenity_weights: dict = None,
+    top_n: int = 5,
 ) -> pd.DataFrame:
     """
-    Returns top town recommendations using the real cleaned dataset.
-    Relies on run_recommender for listing-level scoring.
+    Aggregate pre-scored listings by town and return the top_n towns.
+
+    Expects `df` to already have `final_score` and `predicted_price` columns
+    (i.e. the output of compute_listing_scores from scoring.py).
     """
+    if df is None or df.empty:
+        return pd.DataFrame(columns=["town", "estimated_price", "match_score", "why_it_matches"])
+
+    required = {"town", "final_score", "predicted_price"}
+    if not required.issubset(df.columns):
+        return pd.DataFrame(columns=["town", "estimated_price", "match_score", "why_it_matches"])
+
     results = []
-
-    # Optional filters from user input
-    if getattr(inputs, "flat_type", None):
-        df = df[df["flat_type"] == inputs.flat_type]
-    if getattr(inputs, "floor_area_sqm", None):
-        df = df[
-            (df["floor_area_sqm"] >= inputs.floor_area_sqm - 10) &
-            (df["floor_area_sqm"] <= inputs.floor_area_sqm + 10)
-        ]
-    
-    towns = df["town"].unique()
-    for town in towns:
-        town_listings = df[df["town"] == town]
-        if town_listings.empty:
+    for town, grp in df.groupby("town"):
+        if grp.empty:
             continue
-
-        rec = run_recommender(
-            listings_df=town_listings,
-            amenity_ranking=amenity_ranking or list(amenity_weights.keys()) if amenity_weights else [],
-            amenity_weights=amenity_weights or {a: 1 for a in (amenity_ranking or [])},
-            alpha=0.5,
-            budget=getattr(inputs, "budget", None) or 1_000_000,
-            rooms=[],
-            preferred_towns=[],
-            min_sqft=0,
-            top_n=len(town_listings)
-        )
-
-        if rec["top"].empty:
-            continue
-
-        median_price = rec["top"]["predicted_price"].median()
-        median_score = rec["top"]["final_score"].median()
-        count_listings = len(rec["top"])
         results.append({
-            "town": town,
-            "estimated_price": median_price,
-            "match_score": median_score * 100,  # scale 0..1 → 0..100
-            "count_listings": count_listings
+            "town":             town,
+            "estimated_price":  grp["predicted_price"].median(),
+            "match_score":      grp["final_score"].median() * 100,   # 0..1 → 0..100
+            "count_listings":   len(grp),
         })
 
-    town_df = pd.DataFrame(results)
-    if town_df.empty:
-        return pd.DataFrame(columns=[
-            "town", "estimated_price", "match_score", "why_it_matches"
-        ])
+    if not results:
+        return pd.DataFrame(columns=["town", "estimated_price", "match_score", "why_it_matches"])
 
-    # Sort and keep top_n
-    town_df = town_df.sort_values("match_score", ascending=False).head(top_n)
+    town_df = (
+        pd.DataFrame(results)
+        .sort_values("match_score", ascending=False)
+        .head(top_n)
+        .reset_index(drop=True)
+    )
 
-    # Add descriptive blurbs
     def _why(row):
         reasons = []
-        if getattr(inputs, "budget", None) and row["estimated_price"] <= inputs.budget:
+        budget = getattr(inputs, "budget", None)
+        if budget and row["estimated_price"] <= budget:
             reasons.append("affordable within budget")
         if row["match_score"] >= 70:
             reasons.append("good amenities nearby")
@@ -97,7 +61,13 @@ def recommend_towns_real(
 
     return town_df[["town", "estimated_price", "match_score", "why_it_matches"]]
 
-# ── Example usage ─────────────────────────────────────────────────────────────
+
 def get_top_towns(inputs: UserInputs, top_n: int = 5):
+    from backend.utils.scoring import compute_listing_scores
     listings_df, _ = load_all_data()
-    return recommend_towns_real(inputs, df=listings_df, top_n=top_n)
+    scored = compute_listing_scores(
+        listings_df,
+        budget=getattr(inputs, "budget", None),
+        amenity_weights=getattr(inputs, "amenity_weights", None) or {},
+    )
+    return recommend_towns_real(inputs, df=scored, top_n=top_n)

@@ -13,7 +13,17 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from backend.utils.formatters import fmt_sgd, valuation_tag_html
-from backend.utils.constants import TOWN_COORDS, AMENITY_LABELS
+from backend.utils.constants import TOWN_COORDS
+
+# Labels aligned to the frontend amenity keys used in scoring and cards
+AMENITY_LABELS = {
+    "mrt":        "MRT access",
+    "bus":        "Bus stops",
+    "healthcare": "Healthcare",
+    "schools":    "Schools",
+    "hawker":     "Hawker food",
+    "retail":     "Shopping",
+}
 from frontend.state.session import get_active_session, record_swipe
 from frontend.components.listing_detail import show_listing_detail
 

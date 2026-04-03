@@ -10,7 +10,7 @@ def get_active_listings(inputs):
     df, _ = load_all_data()
 
     if inputs.town:
-        df = df[df["town"] == inputs.town]
+        df = df[df["town"] == inputs.town.strip().upper()]
 
     if inputs.flat_type:
         df = df[df["flat_type"] == inputs.flat_type]

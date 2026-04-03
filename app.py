@@ -695,32 +695,41 @@ def _render_discover():
 
 
 def _render_value_strip(bundle: dict, inputs):
-    pred = bundle.get("predicted_price", 0)
+    pred   = bundle.get("predicted_price", 0)
+    ci_low = bundle.get("confidence_low", 0)
+    ci_hi  = bundle.get("confidence_high", 0)
     budget = inputs.budget
 
     if budget is None:
-        budget_display = "Flexible"
-        diff = None
-        color = "#64748b"
-        bg = "rgba(100,116,139,0.07)"
-        border = "rgba(100,116,139,0.20)"
+        budget_display   = "Flexible"
+        color            = "#64748b"
+        bg               = "rgba(100,116,139,0.07)"
+        border           = "rgba(100,116,139,0.20)"
         headroom_display = "No cap"
     else:
-        diff = ((budget - pred) / pred * 100) if pred else 0
-        sign = "+" if diff >= 0 else ""
-        color = "#059669" if diff >= 0 else "#e11d48"
-        bg = "rgba(5,150,105,0.07)" if diff >= 0 else "rgba(225,29,72,0.07)"
-        border = "rgba(5,150,105,0.20)" if diff >= 0 else "rgba(225,29,72,0.20)"
-        budget_display = f"S${budget:,.0f}"
+        diff   = ((budget - pred) / pred * 100) if pred else 0
+        sign   = "+" if diff >= 0 else ""
+        color  = "#059669" if diff >= 0 else "#e11d48"
+        bg     = "rgba(5,150,105,0.07)"  if diff >= 0 else "rgba(225,29,72,0.07)"
+        border = "rgba(5,150,105,0.20)"  if diff >= 0 else "rgba(225,29,72,0.20)"
+        budget_display   = f"S${budget:,.0f}"
         headroom_display = f"{sign}{diff:.1f}%"
+
+    # CI range string — shown as "S$380k – S$460k", not ±
+    if ci_low and ci_hi:
+        ci_display = f"S${ci_low:,.0f} – S${ci_hi:,.0f}"
+        ci_sub     = "95% price range"
+    else:
+        ci_display = "—"
+        ci_sub     = "95% price range"
 
     st.markdown(
         f"""
         <div style="display:flex;align-items:center;
                     background:#f8fafc;border:1px solid #eef2f7;border-radius:16px;
                     margin-bottom:6px;overflow:hidden;">
-            <div style="flex:1;padding:10px 16px;">
-                <div style="font-size:0.60rem;font-weight:700;text-transform:uppercase;
+            <div style="flex:1;padding:10px 14px;">
+                <div style="font-size:0.58rem;font-weight:700;text-transform:uppercase;
                              letter-spacing:0.09em;color:#94a3b8;">Predicted</div>
                 <div style="font-size:1.0rem;font-weight:800;color:#0f172a;
                              letter-spacing:-0.025em;margin-top:1px;">
@@ -728,8 +737,17 @@ def _render_value_strip(bundle: dict, inputs):
                 </div>
             </div>
             <div style="width:1px;height:36px;background:#e8edf4;flex-shrink:0;"></div>
-            <div style="flex:1;padding:10px 16px;">
-                <div style="font-size:0.60rem;font-weight:700;text-transform:uppercase;
+            <div style="flex:1.4;padding:10px 14px;">
+                <div style="font-size:0.58rem;font-weight:700;text-transform:uppercase;
+                             letter-spacing:0.09em;color:#94a3b8;">{ci_sub}</div>
+                <div style="font-size:0.82rem;font-weight:800;color:#0f172a;
+                             letter-spacing:-0.02em;margin-top:1px;white-space:nowrap;">
+                    {ci_display}
+                </div>
+            </div>
+            <div style="width:1px;height:36px;background:#e8edf4;flex-shrink:0;"></div>
+            <div style="flex:1;padding:10px 14px;">
+                <div style="font-size:0.58rem;font-weight:700;text-transform:uppercase;
                              letter-spacing:0.09em;color:#94a3b8;">Your budget</div>
                 <div style="font-size:1.0rem;font-weight:800;color:#0f172a;
                              letter-spacing:-0.025em;margin-top:1px;">
@@ -737,8 +755,8 @@ def _render_value_strip(bundle: dict, inputs):
                 </div>
             </div>
             <div style="width:1px;height:36px;background:#e8edf4;flex-shrink:0;"></div>
-            <div style="flex:1;padding:10px 16px;background:{bg};border-left:2px solid {border};">
-                <div style="font-size:0.60rem;font-weight:700;text-transform:uppercase;
+            <div style="flex:1;padding:10px 14px;background:{bg};border-left:2px solid {border};">
+                <div style="font-size:0.58rem;font-weight:700;text-transform:uppercase;
                              letter-spacing:0.09em;color:#94a3b8;">Headroom</div>
                 <div style="font-size:1.0rem;font-weight:800;color:{color};
                              letter-spacing:-0.025em;margin-top:1px;">
