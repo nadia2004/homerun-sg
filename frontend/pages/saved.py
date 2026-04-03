@@ -290,12 +290,16 @@ html,body{width:100%;height:100%;font-family:'DM Sans',-apple-system,sans-serif;
         border = "2px solid #059E87" if is_sel else "1px solid #e4e7ed"
         bg = "#f0fdf9" if is_sel else "rgba(255,255,255,0.96)"
 
+        card_title = row.get("address")
+        if pd.isna(card_title) or not str(card_title).strip():
+            card_title = row.get("listing_id", "")
+
         st.markdown(
             f"""
             <div class="nw-listing" style="border:{border};background:{bg};">
                 <div class="nw-listing-header">
                     <div>
-                        <div class="nw-listing-id">{row['listing_id']} · {row['town']}</div>
+                        <div class="nw-listing-id">{card_title}</div>
                         <div class="nw-listing-meta">
                             {row['flat_type']} · {row.get('floor_area_sqm','')} sqm
                             · Storey {row.get('storey_range','')}
@@ -313,7 +317,7 @@ html,body{width:100%;height:100%;font-family:'DM Sans',-apple-system,sans-serif;
                     {tag}
                     <span style="font-size:0.76rem;color:#9ca3af;">{diff:+.1f}% vs model</span>
                     <span style="font-size:0.72rem;font-weight:700;
-                          color:{badge_col};margin-left:auto;">{badge}</span>
+                        color:{badge_col};margin-left:auto;">{badge}</span>
                 </div>
             </div>
             """,

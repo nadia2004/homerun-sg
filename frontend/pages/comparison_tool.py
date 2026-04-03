@@ -368,28 +368,6 @@ SECTOR_TO_TOWNS = {
 # =========================================================
 # Hypothetical flat
 # =========================================================
-def _normalise_postal(postal):
-    if pd.isna(postal):
-        return None
-
-    s = str(postal).strip()
-    if s.endswith(".0"):
-        s = s[:-2]
-
-    s = "".join(ch for ch in s if ch.isdigit())
-    if not s:
-        return None
-
-    return s.zfill(6)
-
-
-def _lookup_towns_from_postal(postal_code):
-    postal_norm = _normalise_postal(postal_code)
-    if not postal_norm or len(postal_norm) < 2:
-        return []
-
-    sector = postal_norm[:2]
-    return SECTOR_TO_TOWNS.get(sector, [])
 
 def _next_hypothetical_id(custom_rows):
     nums = []
@@ -453,60 +431,32 @@ def _render_add_hypothetical_flat(inputs):
         room_options = ["1 ROOM", "2 ROOM", "3 ROOM", "4 ROOM", "5 ROOM", "EXECUTIVE", "MULTI-GENERATION"]
         default_type = inputs.flat_type if getattr(inputs, "flat_type", None) in room_options else "4 ROOM"
 
-        floor_options = [
-            "Low floor (01 to 03)",
-            "Mid floor (04 to 06)",
-            "High floor (07 to 09)",
-            "Very high floor (10 and above)",
-        ]
-
         
         col1, col2 = st.columns(2)
 
         with col1:
-            hyp_postal = st.text_input(
-                "Postal code (optional)",
-                value="",
-                placeholder="e.g. 560123",
+            town_options = sorted([
+                "ANG MO KIO", "BEDOK", "BISHAN", "BUKIT BATOK", "BUKIT MERAH",
+                "BUKIT PANJANG", "BUKIT TIMAH", "CENTRAL AREA", "CHOA CHU KANG",
+                "CLEMENTI", "GEYLANG", "HOUGANG", "JURONG EAST", "JURONG WEST",
+                "KALLANG/WHAMPOA", "MARINE PARADE", "PASIR RIS", "PUNGGOL",
+                "QUEENSTOWN", "SEMBAWANG", "SENGKANG", "SERANGOON", "TAMPINES",
+                "TOA PAYOH", "WOODLANDS", "YISHUN"
+            ])
+    
+            default_town = (
+                str(inputs.town).upper()
+                if getattr(inputs, "town", None) and str(inputs.town) != "Recommendation mode"
+                else town_options[0]
             )
+            default_ix = town_options.index(default_town) if default_town in town_options else 0
 
-            detected_towns = _lookup_towns_from_postal(hyp_postal)
-
-            if len(detected_towns) == 1:
-                st.caption(f"Detected town from postal sector: {detected_towns[0]}")
-                hyp_town = st.text_input("Town", value=detected_towns[0], disabled=True)
-
-            elif len(detected_towns) > 1:
-                st.caption("Postal sector matches multiple possible towns. Please choose one.")
-                default_ix = 0
-                if getattr(inputs, "town", None) in detected_towns:
-                    default_ix = detected_towns.index(inputs.town)
-                hyp_town = st.selectbox(
-                    "Town",
-                    options=detected_towns,
-                    index=default_ix,
-                    key="comparison_hyp_town_selectbox",
-                )
-
-            else:
-                town_options = sorted([
-                    "ANG MO KIO", "BEDOK", "BISHAN", "BUKIT BATOK", "BUKIT MERAH",
-                    "BUKIT PANJANG", "BUKIT TIMAH", "CENTRAL AREA", "CHOA CHU KANG",
-                    "CLEMENTI", "GEYLANG", "HOUGANG", "JURONG EAST", "JURONG WEST",
-                    "KALLANG/WHAMPOA", "MARINE PARADE", "PASIR RIS", "PUNGGOL",
-                    "QUEENSTOWN", "SEMBAWANG", "SENGKANG", "SERANGOON", "TAMPINES",
-                    "TOA PAYOH", "WOODLANDS", "YISHUN"
-                ])
-
-                default_town = str(inputs.town).upper() if getattr(inputs, "town", None) and str(inputs.town) != "Recommendation mode" else town_options[0]
-                default_ix = town_options.index(default_town) if default_town in town_options else 0
-
-                hyp_town = st.selectbox(
-                    "Town",
-                    options=town_options,
-                    index=default_ix,
-                    key="comparison_hyp_town_dropdown",
-                )
+            hyp_town = st.selectbox(
+                "Town",
+                options=town_options,
+                index=default_ix,
+                key="comparison_hyp_town_dropdown",
+            )
 
             hyp_budget = st.slider(
                 "Budget / asking price (SGD)",
@@ -522,7 +472,7 @@ def _render_add_hypothetical_flat(inputs):
                 max_value=99,
                 value=int(getattr(inputs, "remaining_lease_years", 70)),
                 step=1,
-            )           
+            )
 
         with col2:
             hyp_area = st.slider(
@@ -539,20 +489,10 @@ def _render_add_hypothetical_flat(inputs):
                 index=room_options.index(default_type),
             )
 
-            hyp_floor_pref = st.selectbox(
-                "Floor preference",
-                options=floor_options,
-                index=1,
-            )
-
             submitted = st.button("Add hypothetical flat to comparison", type="primary")
 
         if not submitted:
             return False
-
-        detected_towns_submit = _lookup_towns_from_postal(hyp_postal)
-        if len(detected_towns_submit) == 1:
-            hyp_town = detected_towns_submit[0]
 
         if not hyp_town:
             st.warning("Please enter a town for the hypothetical flat.")
@@ -572,29 +512,19 @@ def _render_add_hypothetical_flat(inputs):
 
         try:
             bundle = get_prediction_bundle(scenario_inputs)
-            predicted_price = bundle.get("predicted_price", hyp_budget)
+            predicted_price = bundle.get("predicted_price", np.nan)
             confidence_low = bundle.get("confidence_low", np.nan)
             confidence_high = bundle.get("confidence_high", np.nan)
             recent_transacted = bundle.get("recent_median_transacted", np.nan)
         except Exception:
-            predicted_price = hyp_budget
+            predicted_price = np.nan
             confidence_low = np.nan
             confidence_high = np.nan
             recent_transacted = np.nan
 
-        if pd.notna(predicted_price) and predicted_price != 0:
-            asking_vs_predicted_pct = ((hyp_budget - predicted_price) / predicted_price) * 100
-        else:
-            asking_vs_predicted_pct = np.nan
-
+        asking_vs_predicted_pct = np.nan
         valuation_label = "Hypothetical"
-        if pd.notna(asking_vs_predicted_pct):
-            if asking_vs_predicted_pct <= -5:
-                valuation_label = "Good deal"
-            elif asking_vs_predicted_pct >= 5:
-                valuation_label = "Overpriced"
-            else:
-                valuation_label = "Fairly priced"
+
 
         custom_rows = st.session_state.get("custom_compare_rows", [])
         new_id = _next_hypothetical_id(custom_rows)
@@ -602,18 +532,15 @@ def _render_add_hypothetical_flat(inputs):
         new_row = {
             "listing_id": new_id,
             "comparison_source": "Hypothetical flat",
-            "postal_code": hyp_postal.strip() if hyp_postal else "",
             "town": hyp_town,
             "flat_type": hyp_flat_type,
             "floor_area_sqm": hyp_area,
-            "storey_range": hyp_floor_pref,
-            "asking_price": float(hyp_budget),
             "predicted_price": float(predicted_price) if pd.notna(predicted_price) else np.nan,
             "confidence_low": float(confidence_low) if pd.notna(confidence_low) else np.nan,
             "confidence_high": float(confidence_high) if pd.notna(confidence_high) else np.nan,
             "recent_median_transacted": recent_transacted,
-            "asking_vs_predicted_pct": asking_vs_predicted_pct,
-            "valuation_label": valuation_label,
+            "asking_vs_predicted_pct": np.nan,
+            "valuation_label": "Hypothetical",
             "remaining_lease_years": hyp_remaining_lease_years,
             "score": 70.0,
         }
@@ -697,7 +624,9 @@ def _render_listing_score_cards(selected_df):
 
                 st.write(f"**Flat Type:** {row.get('flat_type', '—')}")
                 st.write(f"**Floor Area:** {row.get('floor_area_sqm', '—')} sqm")
-                st.write(f"**Floor Level:** {row.get('storey_range', '—')}")
+                floor_level = row.get("storey_range", np.nan)
+                if pd.notna(floor_level) and str(floor_level).strip() and str(floor_level).lower() != "nan":
+                    st.write(f"**Floor Level:** {floor_level}")
 
                 if "remaining_lease_years" in row and pd.notna(row.get("remaining_lease_years")):
                     st.write(f"**Remaining Lease:** {row.get('remaining_lease_years')} years")
