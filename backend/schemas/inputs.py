@@ -13,6 +13,7 @@ class UserInputs:
     amenity_weights: Dict[str, float]   # normalised 0-1 weights derived from rank
     amenity_rank: List[str]             # NEW: hard-ranked list, index 0 = top priority
     landmark_postals: List[str]
+    ranking_profile: str = "balanced"
 
     @property
     def flat_type(self) -> str:

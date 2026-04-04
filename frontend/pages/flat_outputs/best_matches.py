@@ -127,7 +127,7 @@ def _serialize_card(row, inputs, budget=None) -> dict:
         "label_color": _val_color(label),
         "map_url": _map_url(town),
         "why": _why_match(row, inputs),
-        "overall_value_score": float(row.get("overall_value_score", 0)),
+        "final_score": float(row.get("final_score", 0)),
         "budget": budget_val,
         "budget_gap": budget_gap,
         "budget_gap_pct": budget_gap_pct,
@@ -146,8 +146,8 @@ def _get_ranked_unseen_df(listings_df: pd.DataFrame, unseen_ids: list) -> pd.Dat
     df["listing_id"] = df["listing_id"].astype(str)
     df = df[df["listing_id"].isin(unseen_ids)]
 
-    if "overall_value_score" in df.columns:
-        df = df.sort_values("overall_value_score", ascending=False)
+    if "final_score" in df.columns:
+        df = df.sort_values("final_score", ascending=False)
 
     return df
 
@@ -208,7 +208,7 @@ def render_listing_tab(listings_df: pd.DataFrame):
     html = _build_single_card_html(json.dumps(current_card))
     components.html(html, height=620, scrolling=False)
 
-    score = current_card["overall_value_score"]
+    score = current_card["final_score"]
     color = "#059E87" if score >= 75 else "#d97706" if score >= 50 else "#FF4458"
 
     st.markdown(

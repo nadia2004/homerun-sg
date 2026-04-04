@@ -667,7 +667,10 @@ def _run_onboarding():
     if done:
         with st.spinner("Building your personalised deck…"):
             inputs     = build_inputs_from_prefs()
-            bundle     = get_prediction_bundle(inputs)
+            bundle = get_prediction_bundle(
+                inputs,
+                ranking_profile=getattr(inputs, "ranking_profile", "balanced"),
+            )
             map_bundle = get_map_bundle(inputs, bundle["recommendations_df"])
         create_search_session(inputs, bundle, map_bundle)
         st.session_state.onboarding_complete = True

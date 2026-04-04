@@ -18,25 +18,6 @@ def _map_iframe(lat, lon, height: int = 220) -> str:
     return f'<iframe src="{src}" width="100%" height="{height}" style="border:none;border-radius:12px;"></iframe>'
 
 
-# ── Distance scoring helpers ───────────────────────────────────────────────
-def _distance_score(dist):
-    if dist is None:
-        return 40
-    try:
-        if math.isnan(float(dist)):
-            return 40
-    except Exception:
-        pass
-
-    if dist <= 300:
-        return 90
-    if dist <= 600:
-        return 75
-    if dist <= 1000:
-        return 60
-    return 40
-
-
 def _proximity_label(dist):
     if dist is None:
         return "Very far"
@@ -54,6 +35,32 @@ def _proximity_label(dist):
         return "Close"
     return "Very close"
 
+def _format_distance(dist):
+    if dist is None:
+        return "N/A"
+    try:
+        if math.isnan(float(dist)):
+            return "N/A"
+        return f"{int(round(float(dist))):,} m"
+    except Exception:
+        return "N/A"
+
+
+def _walking_time_minutes(dist, metres_per_minute: float = 80.0):
+    if dist is None:
+        return None
+    try:
+        dist = float(dist)
+        if math.isnan(dist):
+            return None
+        return max(1, round(dist / metres_per_minute))
+    except Exception:
+        return None
+
+
+def _format_walking_time(dist):
+    mins = _walking_time_minutes(dist)
+    return f"{mins} min" if mins is not None else "N/A"
 
 def _val_style(diff):
     if diff <= -5:
@@ -78,6 +85,82 @@ def _find_listing_row(listing_id):
             return match.iloc[0], s
 
     return None, None
+
+def _sqm_to_sqft(area_sqm) -> int:
+    try:
+        return int(round(float(area_sqm) * 10.7639))
+    except Exception:
+        return 0
+
+
+def _score_color(score: float) -> str:
+    if score >= 75:
+        return "#059669"
+    if score >= 50:
+        return "#d97706"
+    return "#dc2626"
+
+def _proximity_bg(dist) -> tuple[str, str]:
+    label = _proximity_label(dist)
+    if label == "Very close":
+        return "#ecfdf5", "#059669"
+    if label == "Close":
+        return "#eff6ff", "#2563eb"
+    if label == "Moderate":
+        return "#fff7ed", "#d97706"
+    return "#fef2f2", "#dc2626"
+
+
+def _score_badge_html(score: float) -> str:
+    color = _score_color(score)
+    bg = {
+        "#059669": "#ecfdf5",
+        "#d97706": "#fff7ed",
+        "#dc2626": "#fef2f2",
+    }.get(color, "#f8fafc")
+    return (
+        f"<span style='display:inline-block;padding:5px 10px;border-radius:999px;"
+        f"background:{bg};color:{color};font-weight:800;font-size:0.78rem;"
+        f"border:1px solid rgba(15,23,42,0.06);'>{score:.0f}/100</span>"
+    )
+
+
+def _proximity_badge_html(dist) -> str:
+    bg, color = _proximity_bg(dist)
+    label = _proximity_label(dist)
+    return (
+        f"<span style='display:inline-block;padding:5px 10px;border-radius:999px;"
+        f"background:{bg};color:{color};font-weight:700;font-size:0.78rem;"
+        f"border:1px solid rgba(15,23,42,0.06);'>{label}</span>"
+    )
+
+
+def _apply_swipe_local(session_id: str, listing_id: str, direction: str):
+    listing_id = str(listing_id)
+
+    for s in st.session_state.get("search_sessions", []):
+        if s.get("session_id") != session_id:
+            continue
+
+        liked_ids = [str(x) for x in s.get("liked_ids", [])]
+        passed_ids = [str(x) for x in s.get("passed_ids", [])]
+        unseen_ids = [str(x) for x in s.get("unseen_ids", [])]
+
+        if direction == "right":
+            if listing_id not in liked_ids:
+                liked_ids.append(listing_id)
+            passed_ids = [x for x in passed_ids if x != listing_id]
+        elif direction == "left":
+            if listing_id not in passed_ids:
+                passed_ids.append(listing_id)
+            liked_ids = [x for x in liked_ids if x != listing_id]
+
+        unseen_ids = [x for x in unseen_ids if x != listing_id]
+
+        s["liked_ids"] = liked_ids
+        s["passed_ids"] = passed_ids
+        s["unseen_ids"] = unseen_ids
+        break
 
 
 # ── Main dialog ──────────────────────────────────────────────────────────────
@@ -107,9 +190,9 @@ def show_listing_detail(payload: Dict[str, Any] | str | int, show_actions: bool 
 
     db_row, session_data = _find_listing_row(listing_id)
 
-    # Prefer the full dataframe row from the recommender dataset
     if db_row is not None:
         row = db_row
+        listing_id = str(db_row.get("listing_id", listing_id))
 
     if row is None:
         st.error("Listing not found.")
@@ -117,8 +200,6 @@ def show_listing_detail(payload: Dict[str, Any] | str | int, show_actions: bool 
 
     asking = int(row.get("asking_price", 0))
     predicted = int(row.get("predicted_price", 0))
-
-    # Use the same field as the card deck
     diff = float(row.get("asking_vs_predicted_pct", row.get("valuation_pct", 0)))
 
     ci_low = row.get("predicted_price_lower")
@@ -131,7 +212,8 @@ def show_listing_detail(payload: Dict[str, Any] | str | int, show_actions: bool 
 
     town = str(row.get("town", ""))
     flat_type = str(row.get("flat_type", ""))
-    area = round(float(row.get("floor_area_sqm", 0)))
+    area_sqm = float(row.get("floor_area_sqm", 0))
+    area_sqft = _sqm_to_sqft(area_sqm)
     storey = row.get("storey_range", row.get("storey_midpoint", ""))
     address = str(row.get("address", row.get("full_address", "")))
     lat = row.get("lat")
@@ -145,21 +227,17 @@ def show_listing_detail(payload: Dict[str, Any] | str | int, show_actions: bool 
     retail_dist = row.get("mall_1_dist_m")
     health_dist = row.get("polyclinic_1_dist_m")
 
-    mrt_score = _distance_score(mrt_dist)
-    bus_score = _distance_score(bus_dist)
-    school_score = _distance_score(school_dist)
-    hawker_score = _distance_score(hawker_dist)
-    retail_score = _distance_score(retail_dist)
-    health_score = _distance_score(health_dist)
+    amenity_score = float(row.get("amenity_score", 0))
+    value_score = float(row.get("value_score", 0))
+    final_score = float(row.get("final_score", 0))
 
-    amenity_avg = (mrt_score + bus_score + school_score + hawker_score + retail_score + health_score) / 6
-    value_score = max(0, min(100, 100 - abs(diff)))
-    overall_score = round(value_score * 0.6 + amenity_avg * 0.4, 1)
+    amenity_color = _score_color(amenity_score)
+    value_color = _score_color(value_score)
+    final_color = _score_color(final_score)
 
     val_label, val_color = _val_style(diff)
     sign = "+" if diff >= 0 else ""
 
-    # ── Actions ─────────────────────────────────────────────────────────────
     if show_actions:
         liked_ids = [str(x) for x in session_data.get("liked_ids", [])] if session_data else []
         passed_ids = [str(x) for x in session_data.get("passed_ids", [])] if session_data else []
@@ -173,38 +251,31 @@ def show_listing_detail(payload: Dict[str, Any] | str | int, show_actions: bool 
             if not is_passed:
                 if st.button("✕ Pass", use_container_width=True, key=f"detail_pass_{listing_id_str}"):
                     if session_data:
+                        _apply_swipe_local(session_data["session_id"], listing_id_str, "left")
                         record_swipe(session_data["session_id"], listing_id_str, "left")
                     st.rerun()
             else:
-                st.info("Passed")
+                st.success("Passed")
 
         with col2:
             if not is_saved:
                 if st.button("♥ Save", use_container_width=True, type="primary", key=f"detail_save_{listing_id_str}"):
                     if session_data:
+                        _apply_swipe_local(session_data["session_id"], listing_id_str, "right")
                         record_swipe(session_data["session_id"], listing_id_str, "right")
                     st.rerun()
             else:
                 st.success("Saved ♥")
 
-    # ── Header ──────────────────────────────────────────────────────────────
     st.markdown(f"## {town} · {flat_type}")
     st.caption(address or "Address unavailable")
-
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        st.metric("Asking price", fmt_sgd(asking))
-    with c2:
-        st.metric("Predicted fair value", fmt_sgd(predicted))
-    with c3:
-        st.metric("Value gap", f"{sign}{diff:.1f}%")
 
     st.markdown(
         f"""
         <div style="
-            margin: 10px 0 18px 0;
+            margin: 8px 0 16px 0;
             display:inline-block;
-            padding:6px 12px;
+            padding:7px 13px;
             border-radius:999px;
             background:{val_color};
             color:white;
@@ -216,40 +287,186 @@ def show_listing_detail(payload: Dict[str, Any] | str | int, show_actions: bool 
         unsafe_allow_html=True,
     )
 
-    c4, c5, c6 = st.columns(3)
-    with c4:
-        st.metric("Floor area", f"{area} sqm")
-    with c5:
-        st.metric("Storey", str(storey) if storey else "-")
-    with c6:
-        st.metric("Overall score", f"{overall_score:.1f}/100")
-
-    if remaining:
-        st.write(f"**Remaining lease:** {remaining}")
+    st.markdown(
+        f"""
+        <div style="
+            border:1px solid #e2e8f0;
+            border-radius:20px;
+            padding:18px 18px 14px 18px;
+            background:linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+            box-shadow:0 10px 24px rgba(15,23,42,0.06);
+            margin-bottom:14px;">
+            <div style="font-size:0.72rem;font-weight:800;text-transform:uppercase;
+                        letter-spacing:0.08em;color:#94a3b8;margin-bottom:10px;">
+                Price snapshot
+            </div>
+            <div style="display:flex;gap:14px;flex-wrap:wrap;">
+                <div style="flex:1;min-width:160px;">
+                    <div style="font-size:0.76rem;color:#64748b;font-weight:700;">Asking price</div>
+                    <div style="font-size:1.45rem;font-weight:800;color:#0f172a;margin-top:4px;">
+                        {fmt_sgd(asking)}
+                    </div>
+                </div>
+                <div style="flex:1;min-width:160px;">
+                    <div style="font-size:0.76rem;color:#64748b;font-weight:700;">Predicted fair value</div>
+                    <div style="font-size:1.45rem;font-weight:800;color:#0f172a;margin-top:4px;">
+                        {fmt_sgd(predicted)}
+                    </div>
+                </div>
+                <div style="flex:1;min-width:160px;">
+                    <div style="font-size:0.76rem;color:#64748b;font-weight:700;">Value gap</div>
+                    <div style="font-size:1.45rem;font-weight:800;color:{val_color};margin-top:4px;">
+                        {sign}{diff:.1f}%
+                    </div>
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     if ci_low is not None and ci_high is not None:
-        st.write(f"**Confidence band:** {fmt_sgd(ci_low)} – {fmt_sgd(ci_high)}")
+        st.markdown(
+            f"""
+            <div style="
+                margin:0 0 14px 0;
+                padding:12px 14px;
+                border-radius:14px;
+                background:#eff6ff;
+                border:1px solid #bfdbfe;
+                color:#1d4ed8;
+                font-size:0.9rem;
+                font-weight:600;">
+                95% predicted price range: {fmt_sgd(ci_low)} – {fmt_sgd(ci_high)}
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
-    # ── Amenities ───────────────────────────────────────────────────────────
-    st.markdown("### Nearby amenities")
+    st.markdown(
+        f"""
+        <div style="
+            border:1px solid #e2e8f0;
+            border-radius:20px;
+            padding:18px 18px 14px 18px;
+            background:#ffffff;
+            box-shadow:0 10px 24px rgba(15,23,42,0.05);
+            margin-bottom:14px;">
+            <div style="font-size:0.72rem;font-weight:800;text-transform:uppercase;
+                        letter-spacing:0.08em;color:#94a3b8;margin-bottom:10px;">
+                Score breakdown
+            </div>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;">
+                <div style="flex:1;min-width:150px;padding:14px;border-radius:16px;background:#f8fafc;border:1px solid #e2e8f0;">
+                    <div style="font-size:0.74rem;color:#64748b;font-weight:700;">Amenity score</div>
+                    <div style="font-size:1.35rem;font-weight:800;color:{amenity_color};margin-top:5px;">
+                        {amenity_score:.1f}/100
+                    </div>
+                </div>
+                <div style="flex:1;min-width:150px;padding:14px;border-radius:16px;background:#f8fafc;border:1px solid #e2e8f0;">
+                    <div style="font-size:0.74rem;color:#64748b;font-weight:700;">Value score</div>
+                    <div style="font-size:1.35rem;font-weight:800;color:{value_color};margin-top:5px;">
+                        {value_score:.1f}/100
+                    </div>
+                </div>
+                <div style="flex:1;min-width:150px;padding:14px;border-radius:16px;background:#f8fafc;border:1px solid #e2e8f0;">
+                    <div style="font-size:0.74rem;color:#64748b;font-weight:700;">Match score</div>
+                    <div style="font-size:1.35rem;font-weight:800;color:{final_color};margin-top:5px;">
+                        {final_score:.1f}/100
+                    </div>
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-    a1, a2, a3 = st.columns(3)
-    a4, a5, a6 = st.columns(3)
+    st.markdown(
+        f"""
+        <div style="
+            border:1px solid #e2e8f0;
+            border-radius:20px;
+            padding:18px 18px 14px 18px;
+            background:#ffffff;
+            box-shadow:0 10px 24px rgba(15,23,42,0.05);
+            margin-bottom:14px;">
+            <div style="font-size:0.72rem;font-weight:800;text-transform:uppercase;
+                        letter-spacing:0.08em;color:#94a3b8;margin-bottom:10px;">
+                Flat details
+            </div>
+            <div style="display:flex;gap:14px;flex-wrap:wrap;">
+                <div style="flex:1;min-width:160px;">
+                    <div style="font-size:0.76rem;color:#64748b;font-weight:700;">Floor area</div>
+                    <div style="font-size:1.05rem;font-weight:800;color:#0f172a;margin-top:4px;">
+                        {area_sqft} sqft
+                    </div>
+                </div>
+                <div style="flex:1;min-width:160px;">
+                    <div style="font-size:0.76rem;color:#64748b;font-weight:700;">Storey</div>
+                    <div style="font-size:1.05rem;font-weight:800;color:#0f172a;margin-top:4px;">
+                        {str(storey) if storey else "-"}
+                    </div>
+                </div>
+                <div style="flex:1;min-width:160px;">
+                    <div style="font-size:0.76rem;color:#64748b;font-weight:700;">Remaining lease</div>
+                    <div style="font-size:1.05rem;font-weight:800;color:#0f172a;margin-top:4px;">
+                        {str(remaining) if remaining else "-"}
+                    </div>
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-    with a1:
-        st.metric("MRT", _proximity_label(mrt_dist))
-    with a2:
-        st.metric("Bus", _proximity_label(bus_dist))
-    with a3:
-        st.metric("Schools", _proximity_label(school_dist))
-    with a4:
-        st.metric("Hawker", _proximity_label(hawker_dist))
-    with a5:
-        st.metric("Retail", _proximity_label(retail_dist))
-    with a6:
-        st.metric("Healthcare", _proximity_label(health_dist))
+    amenities = [
+        ("🚇 MRT", mrt_dist, float(row.get("mrt_score", 0))),
+        ("🚌 Bus", bus_dist, float(row.get("bus_score", 0))),
+        ("🏫 Schools", school_dist, float(row.get("schools_score", row.get("school_score", 0)))),
+        ("🍜 Hawker", hawker_dist, float(row.get("hawker_score", 0))),
+        ("🛍️ Retail", retail_dist, float(row.get("retail_score", row.get("mall_score", 0)))),
+        ("🏥 Healthcare", health_dist, float(row.get("healthcare_score", row.get("health_score", 0)))),
+    ]
 
-    # ── Map ─────────────────────────────────────────────────────────────────
+    rows_html = ""
+    for label, dist, score in amenities:
+        rows_html += f"""
+    <div style="
+        display:grid;
+        grid-template-columns:1.2fr 1fr 0.9fr 0.9fr 0.9fr;
+        gap:10px;
+        align-items:center;
+        padding:12px 0;
+        border-top:1px solid #f1f5f9;">
+        <div style="font-weight:700;color:#0f172a;">{label}</div>
+        <div>{_proximity_badge_html(dist)}</div>
+        <div style="font-weight:600;color:#334155;">{_format_distance(dist)}</div>
+        <div style="font-weight:600;color:#334155;">{_format_walking_time(dist)}</div>
+        <div>{_score_badge_html(score)}</div>
+    </div>
+    """
+
+    st.markdown(
+        f"""
+    <div style="
+        border:1px solid #e2e8f0;
+        border-radius:20px;
+        padding:18px 18px 10px 18px;
+        background:#ffffff;
+        box-shadow:0 10px 24px rgba(15,23,42,0.05);
+        margin-bottom:14px;">
+        <div style="font-size:0.72rem;font-weight:800;text-transform:uppercase;
+                    letter-spacing:0.08em;color:#94a3b8;margin-bottom:10px;">
+            Nearby amenities
+        </div>
+        {rows_html}
+    </div>
+    """,
+        unsafe_allow_html=True,
+    )
+
+    # MAP
+
     if lat is not None and lon is not None:
-        st.markdown("### Map")
+        st.markdown("### Location")
         st.markdown(_map_iframe(lat, lon), unsafe_allow_html=True)

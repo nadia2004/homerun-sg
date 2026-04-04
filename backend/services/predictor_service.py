@@ -61,11 +61,22 @@ def get_prediction_bundle(inputs: UserInputs, ranking_profile: str = "balanced")
     amenity_weights = getattr(inputs, "amenity_weights", None) or DEFAULT_AMENITY_WEIGHTS
 
     scored_listings = compute_listing_scores(
-        listings_df,
-        budget=budget,
-        amenity_weights=amenity_weights,
-        ranking_profile=ranking_profile,
-    )
+    listings_df,
+    budget=budget,
+    amenity_weights=amenity_weights,
+    ranking_profile=ranking_profile,
+)
+
+# Keep only the top 10 flats for the swipe deck, ranked by backend final_score
+    if "final_score" in scored_listings.columns:
+        scored_listings = (
+            scored_listings
+            .sort_values("final_score", ascending=False)
+            .head(10)
+            .reset_index(drop=True)
+        )
+    else:
+        scored_listings = scored_listings.head(10).reset_index(drop=True)
 
     viable_count = len(scored_listings)
 
