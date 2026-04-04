@@ -359,7 +359,7 @@ def render_explore_page(inputs=None, listings_df: pd.DataFrame = None):
             )
 
             if not search_query.strip():
-                st.info("Enter part of an address to search across the full listings dataset.")
+                st.info("Enter part of an address to search across the full listing.")
             else:
                 search_df = listings_df.copy()
 

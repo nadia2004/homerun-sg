@@ -1,8 +1,7 @@
 """
 frontend/pages/saved.py
 
-Shows all liked flats across all search sessions.
-Flats are grouped by session. 
+Shows saved flats for the active session.
 Users can click "View details" for full amenity/score breakdown,
 select flats for comparison, or remove them.
 """
@@ -19,6 +18,127 @@ from backend.utils.constants import AMENITY_COLORS, AMENITY_LABELS
 from frontend.pages.flat_outputs.map_view import top_priority_keys, add_nearest_amenity_distances
 
 
+def _render_saved_section(section_df: pd.DataFrame, section_title: str, selected_ids: list[str]):
+    if section_df.empty:
+        return
+
+    st.markdown(
+        f"<div style='display:flex;align-items:center;gap:10px;margin:1rem 0 0.7rem;'>"
+        f"<div style='font-size:0.9rem;font-weight:800;color:#0f172a;'>{section_title}</div>"
+        f"<div style='font-size:0.72rem;color:#9ca3af;background:#f7f8fa;"
+        f"border:1px solid #e4e7ed;border-radius:999px;padding:2px 8px;'>"
+        f"{len(section_df)} saved</div></div>",
+        unsafe_allow_html=True,
+    )
+
+    for idx, row in section_df.reset_index(drop=True).iterrows():
+        lid = str(row["listing_id"])
+        session_id = str(row.get("session_id", "na"))
+        is_sel = lid in selected_ids
+        valuation_label = row.get("valuation_label", "")
+        tag = valuation_tag_html(valuation_label) if valuation_label else ""
+
+        diff_raw = row.get("asking_vs_predicted_pct", row.get("valuation_pct", np.nan))
+        diff = float(diff_raw) if pd.notna(diff_raw) else np.nan
+        badge = "♥ Saved"
+        badge_col = "#059E87"
+
+        border = "2px solid #059E87" if is_sel else "1px solid #e4e7ed"
+        bg = "#f0fdf9" if is_sel else "rgba(255,255,255,0.96)"
+
+        card_title = row.get("address")
+        if pd.isna(card_title) or not str(card_title).strip():
+            card_title = row.get("listing_id", "")
+
+        flat_type = row.get("flat_type", "—")
+        area = row.get("floor_area_sqm", np.nan)
+        storey = row.get("storey_range", "")
+
+        meta_parts = [str(flat_type) if pd.notna(flat_type) and str(flat_type).strip() else "—"]
+        if pd.notna(area):
+            meta_parts.append(f"{area} sqm")
+        if str(storey).strip():
+            meta_parts.append(f"Storey {storey}")
+        meta_text = " · ".join(meta_parts)
+
+        asking_display = fmt_sgd(row.get("asking_price")) if pd.notna(row.get("asking_price")) else "—"
+        predicted_display = fmt_sgd(row.get("predicted_price")) if pd.notna(row.get("predicted_price")) else "—"
+
+        st.markdown(
+            f"""
+            <div class="nw-listing" style="border:{border};background:{bg};">
+                <div class="nw-listing-header">
+                    <div>
+                        <div class="nw-listing-id">{card_title}</div>
+                        <div class="nw-listing-meta">{meta_text}</div>
+                    </div>
+                    <div>
+                        <div class="nw-listing-asking">{asking_display}</div>
+                        <div class="nw-listing-predicted">
+                            Predicted: {predicted_display}
+                        </div>
+                    </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;
+                            margin-top:8px;flex-wrap:wrap;">
+                    {tag}
+                    <span style="font-size:0.76rem;color:#9ca3af;">{"{:+.1f}% vs model".format(diff) if pd.notna(diff) else ""}</span>
+                    <span style="font-size:0.72rem;font-weight:700;
+                        color:{badge_col};margin-left:auto;">{badge}</span>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        btn_a, btn_b, btn_c = st.columns([1.2, 0.9, 0.9])
+        with btn_a:
+            if st.button(
+                "View details →",
+                key=f"detail_{section_title}_{lid}_{session_id}_{idx}",
+                use_container_width=True,
+                type="primary",
+            ):
+                show_listing_detail(row.to_dict(), show_actions=False)
+
+        with btn_b:
+            sel_label = "✓ Selected" if is_sel else "Select"
+            if st.button(
+                sel_label,
+                key=f"sel_{section_title}_{lid}_{session_id}_{idx}",
+                use_container_width=True,
+            ):
+                cur = st.session_state.compare_selected_ids
+                if is_sel:
+                    st.session_state.compare_selected_ids = [x for x in cur if x != lid]
+                else:
+                    st.session_state.compare_selected_ids = cur + [lid]
+                st.rerun()
+
+        with btn_c:
+            if st.button(
+                "Remove",
+                key=f"rm_{section_title}_{lid}_{session_id}_{idx}",
+                use_container_width=True,
+            ):
+                session = get_active_session()
+
+                if session is not None:
+                    if lid in session.get("liked_ids", []):
+                        session["liked_ids"].remove(lid)
+
+                    if "extra_saved_rows" in session:
+                        session["extra_saved_rows"] = [
+                            r for r in session["extra_saved_rows"]
+                            if str(r.get("listing_id", "")) != str(lid)
+                        ]
+
+                st.session_state.compare_selected_ids = [
+                    x for x in selected_ids if x != lid
+                ]
+                st.rerun()
+
+
 def render_saved_page():
     session = get_active_session()
     liked_df = get_active_session_liked_df()
@@ -29,7 +149,12 @@ def render_saved_page():
     if extra_rows:
         extra_df = pd.DataFrame(extra_rows)
         liked_df = pd.concat([liked_df, extra_df], ignore_index=True, sort=False)
-    
+
+    if "comparison_source" not in liked_df.columns:
+        liked_df["comparison_source"] = "Discover"
+    else:
+        liked_df["comparison_source"] = liked_df["comparison_source"].fillna("Discover")
+
     session_label = session["label"] if session else "No active session"
 
     st.markdown(
@@ -127,7 +252,7 @@ html,body{width:100%;height:100%;font-family:'DM Sans',-apple-system,sans-serif;
         return
 
     selected_ids = st.session_state.get("compare_selected_ids", [])
-    all_ids = list(liked_df["listing_id"].values)
+    all_ids = list(liked_df["listing_id"].astype(str).values)
 
     c1, c2, c3 = st.columns([2, 1, 1])
     with c1:
@@ -150,7 +275,7 @@ html,body{width:100%;height:100%;font-family:'DM Sans',-apple-system,sans-serif;
     st.markdown("---")
 
     st.markdown("#### Saved flats map")
-    
+
     with st.expander("View saved flats map", expanded=False):
         st.caption("Showing your saved flats for the current session, with nearby amenities.")
 
@@ -273,102 +398,8 @@ html,body{width:100%;height:100%;font-family:'DM Sans',-apple-system,sans-serif;
         else:
             st.info("No saved flats available to show on the map.")
 
-    session_df = liked_df
-    session_label = session["label"] if session else "Current session"
+    discover_df = liked_df[liked_df["comparison_source"] == "Discover"].copy()
+    explore_df = liked_df[liked_df["comparison_source"] == "Explore"].copy()
 
-    st.markdown(
-        f"<div style='display:flex;align-items:center;gap:10px;margin:1rem 0 0.7rem;'>"
-        f"<div style='font-size:0.82rem;font-weight:700;color:#0f172a;'>{session_label}</div>"
-        f"<div style='font-size:0.72rem;color:#9ca3af;background:#f7f8fa;"
-        f"border:1px solid #e4e7ed;border-radius:999px;padding:2px 8px;'>"
-        f"{len(session_df)} saved</div></div>",
-        unsafe_allow_html=True,
-    )
-
-    for idx, row in session_df.reset_index(drop=True).iterrows():
-        lid = str(row["listing_id"])
-        session_id = str(row.get("session_id", "na"))
-        is_sel = lid in selected_ids
-        valuation_label = row.get("valuation_label", "")
-        tag = valuation_tag_html(valuation_label) if valuation_label else ""
-
-        diff_raw = row.get("asking_vs_predicted_pct", row.get("valuation_pct", np.nan))
-        diff = float(diff_raw) if pd.notna(diff_raw) else np.nan
-        badge = "♥ Saved"
-        badge_col = "#059E87"
-
-        border = "2px solid #059E87" if is_sel else "1px solid #e4e7ed"
-        bg = "#f0fdf9" if is_sel else "rgba(255,255,255,0.96)"
-
-        card_title = row.get("address")
-        if pd.isna(card_title) or not str(card_title).strip():
-            card_title = row.get("listing_id", "")
-
-        st.markdown(
-            f"""
-            <div class="nw-listing" style="border:{border};background:{bg};">
-                <div class="nw-listing-header">
-                    <div>
-                        <div class="nw-listing-id">{card_title}</div>
-                        <div class="nw-listing-meta">
-                            {row.get('flat_type', '—')} · {row.get('floor_area_sqm', '')} sqm
-                        · Storey {row.get('storey_range', '')}
-                        </div>
-                    </div>
-                    <div>
-                        <div class="nw-listing-asking">{fmt_sgd(row.get('asking_price')) if pd.notna(row.get('asking_price')) else "—"}</div>
-                        <div class="nw-listing-predicted">
-                            Predicted: {fmt_sgd(row.get('predicted_price')) if pd.notna(row.get('predicted_price')) else "—"}
-                        </div>
-                    </div>
-                </div>
-                <div style="display:flex;align-items:center;gap:8px;
-                            margin-top:8px;flex-wrap:wrap;">
-                    {tag}
-                    <span style="font-size:0.76rem;color:#9ca3af;">{"{:+.1f}% vs model".format(diff) if pd.notna(diff) else ""}</span>
-                    <span style="font-size:0.72rem;font-weight:700;
-                        color:{badge_col};margin-left:auto;">{badge}</span>
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-        btn_a, btn_b, btn_c = st.columns([1.2, 0.9, 0.9])
-        with btn_a:
-            if st.button(
-                "View details →",
-                key=f"detail_{lid}_{session_id}_{idx}",
-                use_container_width=True,
-                type="primary",
-            ):
-                show_listing_detail(row.to_dict(), show_actions=False)
-
-        with btn_b:
-            sel_label = "✓ Selected" if is_sel else "Select"
-            if st.button(sel_label, key=f"sel_{lid}_{session_id}_{idx}", use_container_width=True):
-                cur = st.session_state.compare_selected_ids
-                if is_sel:
-                    st.session_state.compare_selected_ids = [x for x in cur if x != lid]
-                else:
-                    st.session_state.compare_selected_ids = cur + [lid]
-                st.rerun()
-
-        with btn_c:
-            if st.button("Remove", key=f"rm_{lid}_{session_id}_{idx}", use_container_width=True):
-                session = get_active_session()
-
-                if session is not None:
-                    if lid in session.get("liked_ids", []):
-                        session["liked_ids"].remove(lid)
-
-                    if "extra_saved_rows" in session:
-                        session["extra_saved_rows"] = [
-                            r for r in session["extra_saved_rows"]
-                            if str(r.get("listing_id", "")) != str(lid)
-                        ]
-
-                st.session_state.compare_selected_ids = [
-                    x for x in selected_ids if x != lid
-                ]
-                st.rerun()
+    _render_saved_section(discover_df, "Saved from Discover", selected_ids)
+    _render_saved_section(explore_df, "Saved from Explore", selected_ids)
