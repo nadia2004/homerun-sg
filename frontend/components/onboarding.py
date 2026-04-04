@@ -844,14 +844,20 @@ def _render_predicted_amenity_ranking():
 
     with st.expander("Why these priorities?"):
         st.markdown(
-            "We inferred this order from your quiz responses. Higher-scoring amenities are the ones your answers pointed to more strongly."
+            "We estimated these priorities from your quiz responses. "
+            "The percentages below show how strongly each amenity came through in your answers."
         )
+
         quiz_scores = st.session_state.get("pref_quiz_scores", {})
-        if quiz_scores:
+
+        if rank:
             for key in rank:
                 label = FRONTEND_AMENITY_LABELS.get(key, key)
-                score = quiz_scores.get(key, 0.0)
-                st.markdown(f"**{label}** — inferred score: `{score:.3f}`")
+                quiz_pct = quiz_scores.get(key, 0.0) * 100
+
+                st.markdown(
+                    f"**{label}** — Inferred score: `{quiz_pct:.1f}%`"
+                )
 
     st.markdown("<div style='height:1rem'></div>", unsafe_allow_html=True)
 
