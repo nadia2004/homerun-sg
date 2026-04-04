@@ -231,6 +231,24 @@ def _format_listing_label(row):
     base = f"{str(flat_type).title()} at {str(town).title()}"
     return f"{listing_id} · {base}" if listing_id else base
 
+
+def _comparison_card_title(i, row):
+    return f"Flat {chr(65 + i)}"
+
+
+def _comparison_card_subtitle(row):
+    listing_id = str(row.get("listing_id", "")).strip()
+    address = str(row.get("address", "")).strip()
+
+    if not address or address.lower() == "nan":
+        address = "Address unavailable"
+
+    if listing_id:
+        return f"{address}<br>ID: {listing_id}"
+
+    return address
+
+
 # =========================================================
 # Styling
 # =========================================================
@@ -275,6 +293,7 @@ def _render_card_styles():
         """,
         unsafe_allow_html=True,
     )
+
 
 # =========================================================
 # Postal sector mapping (first 2 digits of SG postal code)
@@ -366,7 +385,6 @@ SECTOR_TO_TOWNS = {
 }
 
 
-
 # =========================================================
 # Render sections
 # =========================================================
@@ -389,11 +407,13 @@ def _render_summary_cards(selected_df):
         f"and {best_fit['listing_id']} best matches your search profile."
     )
 
+
 def _source_legend_label(row):
     source = row.get("comparison_source", "Saved flat")
     flat_type = row.get("flat_type", "Flat")
     town = row.get("town", "Unknown")
     return f"{source} ({flat_type} at {town})"
+
 
 def _render_listing_score_cards(selected_df):
     st.markdown("### Side-by-Side Listing Comparison")
@@ -404,13 +424,19 @@ def _render_listing_score_cards(selected_df):
         lid = row.get("listing_id")
         row_uid = f"{row.get('listing_id', '')}_{row.get('session_id', 'na')}_{i}"
 
+        card_title = _comparison_card_title(i, row)
+        card_subtitle = _comparison_card_subtitle(row)
+
         with cols[i]:
             with st.container(border=True):
                 title_col, close_col = st.columns([8, 0.9])
 
                 with title_col:
-                    st.markdown(f"#### {row.get('listing_id', '')}")
-                    st.caption(f"{str(row.get('flat_type', 'Flat')).title()} at {str(row.get('town', 'Unknown')).title()}")
+                    st.markdown(f"#### {card_title}")
+                    st.markdown(
+                        f"<div style='font-size:0.82rem;color:#6b7280;line-height:1.5;margin-top:-0.35rem;margin-bottom:0.35rem;'>{card_subtitle}</div>",
+                        unsafe_allow_html=True,
+                    )
 
                 with close_col:
                     if st.button("×", key=f"remove_compare_{row_uid}", help="Remove from comparison"):
@@ -493,6 +519,7 @@ def _render_listing_score_cards(selected_df):
                 else:
                     st.caption("Suitable, but less aligned with the user's preferred balance of factors")
 
+
 def _render_metric_bar_chart(selected_df, metric_col, chart_title):
     chart_df = selected_df.copy()
     chart_df[metric_col] = pd.to_numeric(chart_df[metric_col], errors="coerce").fillna(0)
@@ -560,6 +587,7 @@ def _render_metric_comparison_tabs(selected_df):
         st.write(
             f"**{best_fit['listing_id']}** currently has the strongest fit score among the selected flats."
         )
+
 
 def _render_comparison_insights(selected_df):
     best_value = selected_df.sort_values("value_score", ascending=False).iloc[0]
