@@ -233,16 +233,16 @@ def render_listing_tab(listings_df: pd.DataFrame):
             padding: 18px 18px 16px 18px;
             margin-bottom: 12px;
             border-radius: 22px;
-            background: linear-gradient(135deg, rgba(255,68,88,0.12) 0%, rgba(255,107,107,0.10) 45%, rgba(255,240,244,0.95) 100%);
-            border: 1px solid rgba(255,68,88,0.20);
-            box-shadow: 0 10px 24px rgba(255,68,88,0.10);
+            background: linear-gradient(135deg, #fff7f9 0%, #fdf2f6 45%, #fae8f0 100%);
+            border: 1px solid rgba(136,19,55,0.12);
+            box-shadow: 0 10px 24px rgba(88,28,61,0.08);
         ">
             <div style="
                 font-size: 0.72rem;
                 font-weight: 800;
                 letter-spacing: 0.12em;
                 text-transform: uppercase;
-                color: #FF4458;
+                color: #9f1239;
                 margin-bottom: 6px;
             ">
                 HomeRun recommendations
@@ -251,7 +251,7 @@ def render_listing_tab(listings_df: pd.DataFrame):
                 font-size: 1.85rem;
                 font-weight: 800;
                 letter-spacing: -0.04em;
-                color: #7f1d3f;
+                color: #581c3d;
                 line-height: 1.05;
                 margin-bottom: 6px;
             ">
@@ -259,17 +259,16 @@ def render_listing_tab(listings_df: pd.DataFrame):
             </div>
             <div style="
                 font-size: 0.94rem;
-                color: #9f1239;
+                color: #6b7280;
                 font-weight: 500;
                 line-height: 1.5;
             ">
-                Ranked to best match your budget, lifestyle, and amenity priorities using our in-house model.
+                Ranked to best match your budget, lifestyle, and amenity priorities.
             </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
-
     # Render ONLY the current card so visuals and details stay synced
     html = _build_single_card_html(json.dumps(current_card))
     components.html(html, height=445, scrolling=False)
