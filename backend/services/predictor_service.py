@@ -72,15 +72,19 @@ def get_prediction_bundle(inputs: UserInputs, ranking_profile: str = "balanced")
 
     scored_listings = rec["top"].copy()
 
-    if "final_score" in scored_listings.columns:
-        scored_listings = (
-            scored_listings
-            .sort_values("final_score", ascending=False)
-            .head(10)
-            .reset_index(drop=True)
-        )
-    else:
-        scored_listings = scored_listings.head(10).reset_index(drop=True)
+   
+
+
+    # Rescale final_score to 0.5-1.0 so worst recommended listing still shows 50%+
+    if "final_score" in scored_listings.columns and len(scored_listings) > 1:
+        fs = scored_listings["final_score"]
+        fs_min, fs_max = fs.min(), fs.max()
+        if fs_max > fs_min:
+            scored_listings["final_score"] = (
+                0.5 + ((fs - fs_min) / (fs_max - fs_min)) * 0.5
+            ).round(4)
+        else:
+            scored_listings["final_score"] = 0.8
 
     viable_count = len(scored_listings)
 
