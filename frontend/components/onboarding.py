@@ -35,6 +35,7 @@ AMENITY_ICONS = {
     "schools": "🏫",
     "hawker": "🍜",
     "retail": "🛍️",
+    "supermarket": "🛒",
 }
 
 FRONTEND_AMENITY_LABELS = {
@@ -42,6 +43,7 @@ FRONTEND_AMENITY_LABELS = {
     "bus": "Bus stops",
     "hawker": "Hawker centres",
     "retail": "Shopping malls",
+    "supermarket": "Supermarkets",
     "healthcare": "Hospitals / Polyclinics",
     "schools": "Schools",
 }
@@ -75,7 +77,7 @@ AMENITY_KEY_MAP = {
     "bus": "bus",
     "hawker": "hawker",
     "mall": "retail",
-    "supermarket": "retail",
+    "supermarket": "supermarket",
     "polyclinic": "healthcare",
     "primary_school": "schools",
 }
